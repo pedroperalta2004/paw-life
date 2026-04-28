@@ -1,15 +1,19 @@
-import { useRouter, Stack } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
+  ActivityIndicator,
+  Alert,
   Image,
+  Modal,
+  Pressable,
   SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "../src/lib/supabase";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -17,9 +21,57 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const handleRegister = () => {
-    router.replace("/dashboard");
+  const handleRegister = async () => {
+    if (!fullName.trim() || !email.trim() || !password.trim()) {
+      Alert.alert("Campos em falta", "Preencha nome, email e palavra-passe.");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert(
+        "Palavra-passe inválida",
+        "A palavra-passe deve ter pelo menos 6 caracteres."
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            nome: fullName.trim(),
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const user = data.user;
+
+      if (!user) {
+        throw new Error("Não foi possível obter o utilizador após o registo.");
+      }
+
+      setShowSuccessModal(true);
+    } catch (error: any) {
+      Alert.alert("Erro no registo", error.message || "Ocorreu um erro.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSuccessContinue = () => {
+    setShowSuccessModal(false);
+    router.replace("/login");
   };
 
   return (
@@ -105,8 +157,16 @@ export default function RegisterScreen() {
             </View>
           </View>
 
-          <Pressable style={styles.registerButton} onPress={handleRegister}>
-            <Text style={styles.registerButtonText}>Registar</Text>
+          <Pressable
+            style={[styles.registerButton, loading && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.registerButtonText}>Registar</Text>
+            )}
           </Pressable>
         </View>
 
@@ -117,6 +177,34 @@ export default function RegisterScreen() {
           </Pressable>
         </View>
       </View>
+
+      <Modal
+        visible={showSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleSuccessContinue}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconCircle}>
+              <Ionicons name="checkmark" size={34} color="#FFFFFF" />
+            </View>
+
+            <Text style={styles.modalTitle}>Conta criada com sucesso!</Text>
+            <Text style={styles.modalDescription}>
+              A sua conta foi registada com sucesso. Já pode iniciar sessão no
+              PawLife.
+            </Text>
+
+            <Pressable
+              style={styles.modalButton}
+              onPress={handleSuccessContinue}
+            >
+              <Text style={styles.modalButtonText}>Continuar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -230,12 +318,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#0F9D92",
     alignItems: "center",
     justifyContent: "center",
-
     shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
   },
 
   registerButtonText: {
@@ -260,5 +351,69 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#0F9D92",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+
+  modalCard: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+
+  modalIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+
+  modalTitle: {
+    fontSize: 21,
+    fontWeight: "800",
+    color: "#0F172A",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+
+  modalDescription: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#64748B",
+    textAlign: "center",
+    marginBottom: 22,
+  },
+
+  modalButton: {
+    width: "100%",
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#0F9D92",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

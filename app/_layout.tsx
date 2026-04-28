@@ -1,11 +1,43 @@
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import { Drawer } from "expo-router/drawer";
 import { DrawerContentScrollView } from "@react-navigation/drawer";
-import { Pressable, View, Text, StyleSheet, Image } from "react-native";
+import {
+  Pressable,
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  ActivityIndicator,
+} from "react-native";
 import { useFonts, Pacifico_400Regular } from "@expo-google-fonts/pacifico";
-import { BlurView } from "expo-blur";
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "../src/lib/supabase";
 
 const ACTIVE_GREEN = "#06afa1";
+
+function getInitials(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return "U";
+
+  const parts = trimmed.split(" ").filter(Boolean);
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function getProfilePublicUrl(path: string | null) {
+  if (!path) return null;
+
+  if (path.startsWith("http")) {
+    return path;
+  }
+
+  const { data } = supabase.storage.from("profile-images").getPublicUrl(path);
+  return data.publicUrl;
+}
 
 function MenuItem({
   label,
@@ -47,7 +79,6 @@ function CustomDrawerContent(props: any) {
       scrollEnabled={false}
     >
       <View>
-        {/* Logo menu lateral */}
         <View style={styles.header}>
           <View style={styles.logoBox}>
             <Image
@@ -146,20 +177,6 @@ function CustomDrawerContent(props: any) {
         />
 
         <MenuItem
-          label="Emergência"
-          route="emergencia"
-          currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("emergencia")}
-          icon={
-            <Feather
-              name="phone-call"
-              size={17}
-              color={currentRoute === "emergencia" ? ACTIVE_GREEN : "#64748B"}
-            />
-          }
-        />
-
-        <MenuItem
           label={"Associações\nde Adoção"}
           route="adoption"
           currentRoute={currentRoute}
@@ -174,17 +191,31 @@ function CustomDrawerContent(props: any) {
         />
       </View>
 
-      {/* Footer */}
       <View>
         <View style={styles.separator} />
         <Pressable
-          onPress={() => props.navigation.navigate("login")}
-          style={styles.footerItem}
-        >
-          <View style={styles.itemContent}>
-            <View style={styles.iconWrap}>
-              <MaterialIcons name="logout" size={17} color="#64748B" />
-            </View>
+            onPress={async () => {
+              try {
+                const { error } = await supabase.auth.signOut();
+
+                if (error) {
+                  console.log("Erro ao terminar sessão:", error.message);
+                  return;
+                }
+
+                props.navigation.reset({
+                  index: 0,
+                  routes: [{ name: "login" }],
+                });
+              } catch (error) {
+                console.log("Erro inesperado ao terminar sessão:", error);
+              }
+            }}
+            style={styles.footerItem}>
+            <View style={styles.itemContent}>
+              <View style={styles.iconWrap}>
+                <MaterialIcons name="logout" size={17} color="#64748B" />
+              </View>
             <Text style={styles.footerLabel}>Terminar Sessão</Text>
           </View>
         </Pressable>
@@ -198,12 +229,96 @@ export default function RootLayout() {
     Pacifico_400Regular,
   });
 
+  const [fullName, setFullName] = useState("");
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+      useEffect(() => {
+      let profileChannel: ReturnType<typeof supabase.channel> | null = null;
+
+      const loadProfile = async () => {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+
+          if (!user) {
+            setFullName("");
+            setProfilePhotoUrl(null);
+            return;
+          }
+
+          const { data, error } = await supabase
+            .from("utilizadores")
+            .select("nome, foto_perfil_url")
+            .eq("id_utilizador", user.id)
+            .single();
+
+          if (error) {
+            console.log("Erro ao carregar perfil:", error.message);
+            setFullName("");
+            setProfilePhotoUrl(null);
+            return;
+          }
+
+          setFullName(data?.nome ?? "");
+          setProfilePhotoUrl(data?.foto_perfil_url ?? null);
+
+          if (!profileChannel) {
+            profileChannel = supabase
+              .channel(`utilizadores-${user.id}`)
+              .on(
+                "postgres_changes",
+                {
+                  event: "UPDATE",
+                  schema: "public",
+                  table: "utilizadores",
+                  filter: `id_utilizador=eq.${user.id}`,
+                },
+                (payload) => {
+                  const newRow = payload.new as {
+                    nome?: string;
+                    foto_perfil_url?: string | null;
+                  };
+
+                  setFullName(newRow.nome ?? "");
+                  setProfilePhotoUrl(newRow.foto_perfil_url ?? null);
+                }
+              )
+              .subscribe();
+          }
+        } catch (error) {
+          console.log("Erro inesperado ao carregar perfil:", error);
+        } finally {
+          setLoadingProfile(false);
+        }
+      };
+
+      loadProfile();
+
+      const authSubscription = supabase.auth.onAuthStateChange(() => {
+        loadProfile();
+      });
+
+      return () => {
+        authSubscription.data.subscription.unsubscribe();
+
+        if (profileChannel) {
+          supabase.removeChannel(profileChannel);
+        }
+      };
+    }, []);
+
+  const initials = useMemo(() => getInitials(fullName), [fullName]);
+  const resolvedPhoto = useMemo(() => getProfilePublicUrl(profilePhotoUrl), [profilePhotoUrl]);
+
   if (!fontsLoaded) {
     return null;
   }
 
   return (
     <Drawer
+      initialRouteName="login"
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={({ navigation }) => ({
         headerShown: true,
@@ -257,12 +372,21 @@ export default function RootLayout() {
               <View style={styles.notificationDot} />
             </Pressable>
 
-            <Pressable style={styles.profileButton}>
-              <Image
-                source={require("../assets/images/profile_placeholder.png")}
-                style={styles.profileImage}
-                resizeMode="cover"
-              />
+            <Pressable
+              style={styles.profileButton}
+              onPress={() => navigation.navigate("profile")}
+            >
+              {loadingProfile ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : resolvedPhoto ? (
+                <Image
+                  source={{ uri: resolvedPhoto }}
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.profileInitials}>{initials}</Text>
+              )}
             </Pressable>
           </View>
         ),
@@ -276,10 +400,8 @@ export default function RootLayout() {
       <Drawer.Screen name="walks" options={{ title: "" }} />
       <Drawer.Screen name="adoption" options={{ title: "" }} />
       <Drawer.Screen name="profile" options={{ title: "" }} />
-
       <Drawer.Screen name="saude" options={{ title: "" }} />
       <Drawer.Screen name="calendario" options={{ title: "" }} />
-      <Drawer.Screen name="emergencia" options={{ title: "" }} />
 
       <Drawer.Screen
         name="login"
@@ -410,7 +532,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  /* HEADER GLOBAL */
   headerLeftButton: {
     marginLeft: 16,
     marginRight: 8,
@@ -473,15 +594,23 @@ const styles = StyleSheet.create({
   },
 
   profileButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#14B8A6",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   profileImage: {
     width: "100%",
     height: "100%",
+  },
+
+  profileInitials: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

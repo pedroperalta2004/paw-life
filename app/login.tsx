@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   SafeAreaView,
@@ -10,23 +12,47 @@ import {
   TextInput,
   View,
 } from "react-native";
-
+import { supabase } from "../src/lib/supabase";
 
 export default function LoginScreen() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Para já, só navega para o dashboard
-    router.replace("/dashboard");
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Campos em falta", "Preencha o email e a palavra-passe.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      router.replace("/dashboard");
+    } catch (error: any) {
+      Alert.alert(
+        "Erro no login",
+        error.message || "Não foi possível iniciar sessão."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Topo */}
         <View style={styles.topSection}>
           <View style={styles.logoBox}>
             <Image
@@ -42,11 +68,9 @@ export default function LoginScreen() {
           </Text>
         </View>
 
-        {/* Card Login */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Aceda à sua conta</Text>
 
-          {/* Email */}
           <View style={styles.fieldBlock}>
             <Text style={styles.label}>Email</Text>
             <View style={styles.inputWrapper}>
@@ -68,7 +92,6 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Password */}
           <View style={styles.fieldBlock}>
             <View style={styles.passwordHeader}>
               <Text style={styles.label}>Palavra-passe</Text>
@@ -97,13 +120,19 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Botão */}
-          <Pressable style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Entrar</Text>
+          <Pressable
+            style={[styles.loginButton, loading && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.loginButtonText}>Entrar</Text>
+            )}
           </Pressable>
         </View>
 
-        {/* Rodapé */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Ainda não tem conta? </Text>
           <Pressable onPress={() => router.push("/registar")}>
@@ -237,12 +266,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#0F9D92",
     alignItems: "center",
     justifyContent: "center",
-
     shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+
+  buttonDisabled: {
+    opacity: 0.7,
   },
 
   loginButtonText: {
