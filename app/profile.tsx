@@ -9,6 +9,7 @@ import {
   Image,
   Alert,
   ScrollView,
+  RefreshControl,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -63,6 +64,7 @@ export default function ProfileScreen() {
   const [petCount, setPetCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const photoUrl = useMemo(() => getPublicUrlFromPath(photoPath), [photoPath]);
 
@@ -114,10 +116,15 @@ export default function ProfileScreen() {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProfile();
+    setRefreshing(false);
+  };
+
   const deleteOldProfileImage = async (path: string | null) => {
     if (!path) return;
 
-    // se por acaso ainda estiver guardada uma URL antiga, tentamos converter
     let finalPath = path;
 
     if (path.startsWith("http")) {
@@ -251,7 +258,17 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0F9D92"]}
+            tintColor="#0F9D92"
+          />
+        }
+      >
         {loading ? (
           <ActivityIndicator size="large" color="#0F9D92" />
         ) : (
@@ -342,12 +359,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 18,
     position: "relative",
-    overflow: "hidden",
   },
 
   avatarImage: {
     width: "100%",
     height: "100%",
+    borderRadius: 48,
   },
 
   avatarText: {

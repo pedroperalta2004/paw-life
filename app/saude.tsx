@@ -10,12 +10,8 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import {
-  Ionicons,
-  MaterialIcons,
-  Feather,
-  FontAwesome5,
-} from "@expo/vector-icons";
+import { Ionicons, Feather, FontAwesome5 } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "../src/lib/supabase";
 
 type Animal = {
@@ -39,14 +35,7 @@ type HealthRecord = {
   local: string | null;
 };
 
-const HEALTH_TYPES = [
-  "Todos",
-  "Vacina",
-  "Consulta",
-  "Exame",
-  "Medicamento",
-];
-
+const HEALTH_TYPES = ["Todos", "Vacina", "Consulta", "Exame", "Medicamento"];
 const STATUS_OPTIONS = ["Concluído", "Pendente"];
 
 function formatDate(dateString: string | null) {
@@ -59,6 +48,10 @@ function formatDate(dateString: string | null) {
     month: "long",
     year: "numeric",
   });
+}
+
+function formatInputDate(date: Date) {
+  return date.toISOString().split("T")[0];
 }
 
 function formatRelativeDays(dateString: string | null) {
@@ -136,6 +129,7 @@ export default function SaudeScreen() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<HealthRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [formAnimalId, setFormAnimalId] = useState("");
@@ -146,7 +140,10 @@ export default function SaudeScreen() {
   const [formNextDate, setFormNextDate] = useState("");
   const [formVeterinario, setFormVeterinario] = useState("");
   const [formLocal, setFormLocal] = useState("");
-  const [formStatus, setFormStatus] = useState("Concluído");
+  const [formStatus, setFormStatus] = useState("Pendente");
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showNextDatePicker, setShowNextDatePicker] = useState(false);
 
   const [visibleCount, setVisibleCount] = useState(5);
 
@@ -200,6 +197,7 @@ export default function SaudeScreen() {
   };
 
   const resetForm = () => {
+    setEditingRecord(null);
     setFormAnimalId(animals[0]?.id_animal ?? "");
     setFormType("Vacina");
     setFormTitle("");
@@ -208,15 +206,12 @@ export default function SaudeScreen() {
     setFormNextDate("");
     setFormVeterinario("");
     setFormLocal("");
-    setFormStatus("Concluído");
+    setFormStatus("Pendente");
   };
 
   const handleOpenCreate = () => {
     if (animals.length === 0) {
-      Alert.alert(
-        "Sem animais",
-        "Primeiro precisa de registar pelo menos um animal."
-      );
+      Alert.alert("Sem animais", "Primeiro precisa de registar pelo menos um animal.");
       return;
     }
 
@@ -224,51 +219,141 @@ export default function SaudeScreen() {
     setShowCreateModal(true);
   };
 
+  const handleOpenEdit = (record: HealthRecord) => {
+    setEditingRecord(record);
+    setFormAnimalId(record.id_animal);
+    setFormType(normalizeTypeLabel(record.tipo_registo));
+    setFormTitle(record.titulo ?? "");
+    setFormDescription(record.descricao ?? "");
+    setFormDate(record.data_registo ?? "");
+    setFormNextDate(record.proxima_data ?? "");
+    setFormVeterinario(record.veterinario ?? "");
+    setFormLocal(record.local ?? "");
+    setFormStatus(record.estado ?? "Pendente");
+
+    setShowDetailsModal(false);
+    setShowCreateModal(true);
+  };
+
   const handleSaveRecord = async () => {
     if (!formAnimalId || !formTitle.trim() || !formDate.trim()) {
-      Alert.alert(
-        "Campos obrigatórios",
-        "Preencha o animal, o título e a data do registo."
-      );
+      Alert.alert("Campos obrigatórios", "Preencha o animal, o título e a data do registo.");
       return;
     }
 
     try {
       setSaving(true);
 
+      const payload = {
+        id_animal: formAnimalId,
+        tipo_registo: formType,
+        titulo: formTitle.trim(),
+        descricao: formDescription.trim() || null,
+        data_registo: formDate.trim(),
+        proxima_data: formNextDate.trim() || null,
+        veterinario: formVeterinario.trim() || null,
+        local: formLocal.trim() || null,
+        estado: formStatus,
+      };
+
+      if (editingRecord) {
+        const { data, error } = await supabase
+          .from("registos_saude")
+          .update(payload)
+          .eq("id_registo_saude", editingRecord.id_registo_saude)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setRecords((prev) =>
+          prev.map((item) =>
+            item.id_registo_saude === editingRecord.id_registo_saude ? data : item
+          )
+        );
+
+        setSelectedRecord(data);
+        Alert.alert("Sucesso", "Registo atualizado com sucesso.");
+      } else {
+        const { data, error } = await supabase
+          .from("registos_saude")
+          .insert([payload])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setRecords((prev) => [data, ...prev]);
+        Alert.alert("Sucesso", "Registo de saúde criado com sucesso.");
+      }
+
+      setShowCreateModal(false);
+      resetForm();
+    } catch (error: any) {
+      Alert.alert("Erro", error.message || "Não foi possível guardar o registo.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleStatus = async (record: HealthRecord) => {
+    const newStatus =
+      record.estado?.toLowerCase() === "pendente" ? "Concluído" : "Pendente";
+
+    try {
       const { data, error } = await supabase
         .from("registos_saude")
-        .insert([
-          {
-            id_animal: formAnimalId,
-            tipo_registo: formType,
-            titulo: formTitle.trim(),
-            descricao: formDescription.trim() || null,
-            data_registo: formDate.trim(),
-            proxima_data: formNextDate.trim() || null,
-            veterinario: formVeterinario.trim() || null,
-            local: formLocal.trim() || null,
-            estado: formStatus,
-          },
-        ])
+        .update({ estado: newStatus })
+        .eq("id_registo_saude", record.id_registo_saude)
         .select()
         .single();
 
       if (error) throw error;
 
-      setRecords((prev) => [data, ...prev]);
-      setShowCreateModal(false);
-      resetForm();
-
-      Alert.alert("Sucesso", "Registo de saúde criado com sucesso.");
-    } catch (error: any) {
-      Alert.alert(
-        "Erro",
-        error.message || "Não foi possível guardar o registo."
+      setRecords((prev) =>
+        prev.map((item) =>
+          item.id_registo_saude === record.id_registo_saude ? data : item
+        )
       );
-    } finally {
-      setSaving(false);
+
+      setSelectedRecord(data);
+    } catch (error: any) {
+      Alert.alert("Erro", error.message || "Não foi possível alterar o estado.");
     }
+  };
+
+  const handleDeleteRecord = async (record: HealthRecord) => {
+    Alert.alert(
+      "Eliminar registo",
+      `Tem a certeza que pretende eliminar "${record.titulo}"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from("registos_saude")
+                .delete()
+                .eq("id_registo_saude", record.id_registo_saude);
+
+              if (error) throw error;
+
+              setRecords((prev) =>
+                prev.filter((item) => item.id_registo_saude !== record.id_registo_saude)
+              );
+
+              setSelectedRecord(null);
+              setShowDetailsModal(false);
+              Alert.alert("Sucesso", "Registo eliminado com sucesso.");
+            } catch (error: any) {
+              Alert.alert("Erro", error.message || "Não foi possível eliminar o registo.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const filteredRecords = useMemo(() => {
@@ -365,24 +450,12 @@ export default function SaudeScreen() {
           Acompanhe vacinas, consultas, exames e medicamentos.
         </Text>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.animalsScroll}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.animalsScroll}>
           <Pressable
-            style={[
-              styles.animalChip,
-              selectedAnimalId === "all" && styles.animalChipActive,
-            ]}
+            style={[styles.animalChip, selectedAnimalId === "all" && styles.animalChipActive]}
             onPress={() => setSelectedAnimalId("all")}
           >
-            <Text
-              style={[
-                styles.animalChipText,
-                selectedAnimalId === "all" && styles.animalChipTextActive,
-              ]}
-            >
+            <Text style={[styles.animalChipText, selectedAnimalId === "all" && styles.animalChipTextActive]}>
               Todos
             </Text>
           </Pressable>
@@ -399,8 +472,7 @@ export default function SaudeScreen() {
               <Text
                 style={[
                   styles.animalChipText,
-                  selectedAnimalId === animal.id_animal &&
-                    styles.animalChipTextActive,
+                  selectedAnimalId === animal.id_animal && styles.animalChipTextActive,
                 ]}
               >
                 {animal.nome}
@@ -426,26 +498,14 @@ export default function SaudeScreen() {
           </Pressable>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tabsScroll}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll}>
           {HEALTH_TYPES.map((tab) => (
             <Pressable
               key={tab}
-              style={[
-                styles.tabButton,
-                selectedType === tab && styles.tabButtonActive,
-              ]}
+              style={[styles.tabButton, selectedType === tab && styles.tabButtonActive]}
               onPress={() => setSelectedType(tab)}
             >
-              <Text
-                style={[
-                  styles.tabText,
-                  selectedType === tab && styles.tabTextActive,
-                ]}
-              >
+              <Text style={[styles.tabText, selectedType === tab && styles.tabTextActive]}>
                 {tab === "Todos" ? "Todos os Registos" : tab + "s"}
               </Text>
             </Pressable>
@@ -541,13 +601,14 @@ export default function SaudeScreen() {
                 <View style={styles.recordContent}>
                   <View style={styles.recordTopRow}>
                     <Text style={styles.recordTitle}>{record.titulo}</Text>
-                    <View
+                    <Pressable
                       style={[
                         styles.statusBadge,
                         (record.estado ?? "").toLowerCase() === "pendente"
                           ? styles.statusBadgePending
                           : styles.statusBadgeDone,
                       ]}
+                      onPress={() => handleToggleStatus(record)}
                     >
                       <Text
                         style={[
@@ -559,7 +620,7 @@ export default function SaudeScreen() {
                       >
                         {record.estado ?? "Concluído"}
                       </Text>
-                    </View>
+                    </Pressable>
                   </View>
 
                   <View style={styles.recordMetaRow}>
@@ -573,15 +634,25 @@ export default function SaudeScreen() {
                     {[record.veterinario, record.local].filter(Boolean).join(" | ") || "--"}
                   </Text>
 
-                  <Pressable
-                    style={styles.detailsButton}
-                    onPress={() => {
-                      setSelectedRecord(record);
-                      setShowDetailsModal(true);
-                    }}
-                  >
-                    <Text style={styles.detailsButtonText}>Ver Detalhes</Text>
-                  </Pressable>
+                  <View style={styles.cardActionRow}>
+                    <Pressable
+                      style={styles.detailsButton}
+                      onPress={() => {
+                        setSelectedRecord(record);
+                        setShowDetailsModal(true);
+                      }}
+                    >
+                      <Text style={styles.detailsButtonText}>Ver Detalhes</Text>
+                    </Pressable>
+
+                    <Pressable style={styles.editSmallButton} onPress={() => handleOpenEdit(record)}>
+                      <Feather name="edit-2" size={15} color="#0F9D92" />
+                    </Pressable>
+
+                    <Pressable style={styles.deleteSmallButton} onPress={() => handleDeleteRecord(record)}>
+                      <Feather name="trash-2" size={15} color="#DC2626" />
+                    </Pressable>
+                  </View>
                 </View>
               </View>
             ))
@@ -598,14 +669,20 @@ export default function SaudeScreen() {
         </View>
       </ScrollView>
 
-      {/* MODAL NOVO REGISTO */}
       <Modal visible={showCreateModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Novo Registo de Saúde</Text>
-                <Pressable onPress={() => setShowCreateModal(false)}>
+                <Text style={styles.modalTitle}>
+                  {editingRecord ? "Editar Registo de Saúde" : "Novo Registo de Saúde"}
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setShowCreateModal(false);
+                    resetForm();
+                  }}
+                >
                   <Ionicons name="close" size={22} color="#94A3B8" />
                 </Pressable>
               </View>
@@ -624,8 +701,7 @@ export default function SaudeScreen() {
                     <Text
                       style={[
                         styles.optionChipText,
-                        formAnimalId === animal.id_animal &&
-                          styles.optionChipTextActive,
+                        formAnimalId === animal.id_animal && styles.optionChipTextActive,
                       ]}
                     >
                       {animal.nome}
@@ -639,10 +715,7 @@ export default function SaudeScreen() {
                 {HEALTH_TYPES.filter((t) => t !== "Todos").map((type) => (
                   <Pressable
                     key={type}
-                    style={[
-                      styles.optionChip,
-                      formType === type && styles.optionChipActive,
-                    ]}
+                    style={[styles.optionChip, formType === type && styles.optionChipActive]}
                     onPress={() => setFormType(type)}
                   >
                     <Text
@@ -677,22 +750,44 @@ export default function SaudeScreen() {
               />
 
               <Text style={styles.fieldLabel}>Data do Registo</Text>
-              <TextInput
-                style={styles.input}
-                value={formDate}
-                onChangeText={setFormDate}
-                placeholder="2026-04-21"
-                placeholderTextColor="#94A3B8"
-              />
+              <Pressable style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
+                <Text style={formDate ? styles.dateText : styles.datePlaceholder}>
+                  {formDate || "Selecionar data"}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color="#64748B" />
+              </Pressable>
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={formDate ? new Date(formDate) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowDatePicker(false);
+                    if (selectedDate) setFormDate(formatInputDate(selectedDate));
+                  }}
+                />
+              )}
 
               <Text style={styles.fieldLabel}>Próxima Data</Text>
-              <TextInput
-                style={styles.input}
-                value={formNextDate}
-                onChangeText={setFormNextDate}
-                placeholder="2026-10-21"
-                placeholderTextColor="#94A3B8"
-              />
+              <Pressable style={styles.dateInput} onPress={() => setShowNextDatePicker(true)}>
+                <Text style={formNextDate ? styles.dateText : styles.datePlaceholder}>
+                  {formNextDate || "Selecionar próxima data"}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color="#64748B" />
+              </Pressable>
+
+              {showNextDatePicker && (
+                <DateTimePicker
+                  value={formNextDate ? new Date(formNextDate) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowNextDatePicker(false);
+                    if (selectedDate) setFormNextDate(formatInputDate(selectedDate));
+                  }}
+                />
+              )}
 
               <Text style={styles.fieldLabel}>Veterinário / Médico</Text>
               <TextInput
@@ -717,10 +812,7 @@ export default function SaudeScreen() {
                 {STATUS_OPTIONS.map((status) => (
                   <Pressable
                     key={status}
-                    style={[
-                      styles.optionChip,
-                      formStatus === status && styles.optionChipActive,
-                    ]}
+                    style={[styles.optionChip, formStatus === status && styles.optionChipActive]}
                     onPress={() => setFormStatus(status)}
                   >
                     <Text
@@ -738,20 +830,21 @@ export default function SaudeScreen() {
               <View style={styles.modalButtons}>
                 <Pressable
                   style={styles.cancelButton}
-                  onPress={() => setShowCreateModal(false)}
+                  onPress={() => {
+                    setShowCreateModal(false);
+                    resetForm();
+                  }}
                 >
                   <Text style={styles.cancelButtonText}>Cancelar</Text>
                 </Pressable>
 
-                <Pressable
-                  style={styles.saveButton}
-                  onPress={handleSaveRecord}
-                  disabled={saving}
-                >
+                <Pressable style={styles.saveButton} onPress={handleSaveRecord} disabled={saving}>
                   {saving ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.saveButtonText}>Guardar</Text>
+                    <Text style={styles.saveButtonText}>
+                      {editingRecord ? "Guardar Alterações" : "Guardar"}
+                    </Text>
                   )}
                 </Pressable>
               </View>
@@ -760,7 +853,6 @@ export default function SaudeScreen() {
         </View>
       </Modal>
 
-      {/* MODAL DETALHES */}
       <Modal visible={showDetailsModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.detailsModalCard}>
@@ -774,6 +866,7 @@ export default function SaudeScreen() {
             {selectedRecord && (
               <>
                 <Text style={styles.detailTitle}>{selectedRecord.titulo}</Text>
+
                 <Text style={styles.detailLine}>
                   <Text style={styles.detailLabel}>Animal: </Text>
                   {getAnimalName(selectedRecord.id_animal)}
@@ -806,6 +899,33 @@ export default function SaudeScreen() {
                   <Text style={styles.detailLabel}>Descrição: </Text>
                   {selectedRecord.descricao || "--"}
                 </Text>
+
+                <View style={styles.detailActionsRow}>
+                  <Pressable
+                    style={styles.detailEditButton}
+                    onPress={() => handleOpenEdit(selectedRecord)}
+                  >
+                    <Text style={styles.detailEditButtonText}>Editar</Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={styles.detailStatusButton}
+                    onPress={() => handleToggleStatus(selectedRecord)}
+                  >
+                    <Text style={styles.detailStatusButtonText}>
+                      {selectedRecord.estado?.toLowerCase() === "pendente"
+                        ? "Marcar Concluído"
+                        : "Marcar Pendente"}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={styles.detailDeleteButton}
+                  onPress={() => handleDeleteRecord(selectedRecord)}
+                >
+                  <Text style={styles.detailDeleteButtonText}>Eliminar Registo</Text>
+                </Pressable>
               </>
             )}
           </View>
@@ -816,531 +936,190 @@ export default function SaudeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-  },
-
-  container: {
-    padding: 18,
-    paddingBottom: 40,
-  },
-
-  pageTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 6,
-  },
-
-  pageSubtitle: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 22,
-    marginBottom: 18,
-    maxWidth: 300,
-  },
-
-  animalsScroll: {
-    marginBottom: 14,
-  },
+  screen: { flex: 1, backgroundColor: "#F3F4F6" },
+  container: { padding: 18, paddingBottom: 40 },
+  pageTitle: { fontSize: 24, fontWeight: "800", color: "#0F172A", marginBottom: 6 },
+  pageSubtitle: { fontSize: 14, color: "#64748B", lineHeight: 22, marginBottom: 18, maxWidth: 300 },
+  animalsScroll: { marginBottom: 14 },
 
   animalChip: {
-    height: 38,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
+    height: 38, paddingHorizontal: 16, borderRadius: 20, backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "#CBD5E1", justifyContent: "center",
+    alignItems: "center", marginRight: 10,
   },
+  animalChipActive: { backgroundColor: "#DBF5F1", borderColor: "#0F9D92" },
+  animalChipText: { fontSize: 13, fontWeight: "700", color: "#475569" },
+  animalChipTextActive: { color: "#0F9D92" },
 
-  animalChipActive: {
-    backgroundColor: "#DBF5F1",
-    borderColor: "#0F9D92",
-  },
-
-  animalChipText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#475569",
-  },
-
-  animalChipTextActive: {
-    color: "#0F9D92",
-  },
-
-  topButtonsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 18,
-  },
-
+  topButtonsRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 18 },
   filterButton: {
-    width: "28%",
-    height: 52,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    width: "28%", height: 52, backgroundColor: "#FFFFFF", borderRadius: 16,
+    borderWidth: 1, borderColor: "#CBD5E1", flexDirection: "row",
+    alignItems: "center", justifyContent: "center", gap: 8,
   },
-
-  filterButtonText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#334155",
-  },
-
+  filterButtonText: { fontSize: 15, fontWeight: "700", color: "#334155" },
   newRecordButton: {
-    width: "68%",
-    height: 52,
-    backgroundColor: "#0F9D92",
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+    width: "68%", height: 52, backgroundColor: "#0F9D92", borderRadius: 16,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
   },
+  newRecordButtonText: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
 
-  newRecordButtonText: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-
-  tabsScroll: {
-    marginBottom: 18,
-  },
-
+  tabsScroll: { marginBottom: 18 },
   tabButton: {
-    paddingHorizontal: 18,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
+    paddingHorizontal: 18, height: 42, borderRadius: 21, backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "#CBD5E1", justifyContent: "center",
+    alignItems: "center", marginRight: 10,
   },
-
-  tabButtonActive: {
-    backgroundColor: "#172554",
-    borderColor: "#172554",
-  },
-
-  tabText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#334155",
-  },
-
-  tabTextActive: {
-    color: "#FFFFFF",
-  },
+  tabButtonActive: { backgroundColor: "#172554", borderColor: "#172554" },
+  tabText: { fontSize: 14, fontWeight: "700", color: "#334155" },
+  tabTextActive: { color: "#FFFFFF" },
 
   summaryCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
+    backgroundColor: "#FFFFFF", borderRadius: 20, borderWidth: 1, borderColor: "#E5E7EB",
+    padding: 18, flexDirection: "row", alignItems: "center", marginBottom: 14,
   },
-
   summaryIconBox: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
+    width: 58, height: 58, borderRadius: 18, alignItems: "center",
+    justifyContent: "center", marginRight: 16,
   },
-
-  summaryLabel: {
-    fontSize: 14,
-    color: "#64748B",
-    marginBottom: 6,
-  },
-
-  summaryValue: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-
-  summaryMainText: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 4,
-  },
-
-  summaryDangerText: {
-    fontSize: 15,
-    color: "#E11D48",
-    fontWeight: "700",
-  },
-
-  summaryDangerTextAlt: {
-    fontSize: 15,
-    color: "#E11D48",
-    fontWeight: "700",
-  },
+  summaryLabel: { fontSize: 14, color: "#64748B", marginBottom: 6 },
+  summaryValue: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
+  summaryMainText: { fontSize: 17, fontWeight: "800", color: "#0F172A", marginBottom: 4 },
+  summaryDangerText: { fontSize: 15, color: "#E11D48", fontWeight: "700" },
+  summaryDangerTextAlt: { fontSize: 15, color: "#E11D48", fontWeight: "700" },
 
   searchCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    overflow: "hidden",
-    marginTop: 8,
+    backgroundColor: "#FFFFFF", borderRadius: 22, borderWidth: 1, borderColor: "#E5E7EB",
+    overflow: "hidden", marginTop: 8,
   },
-
   searchSortRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    flexDirection: "row", justifyContent: "space-between", padding: 16,
+    borderBottomWidth: 1, borderBottomColor: "#E5E7EB",
   },
-
   searchBox: {
-    width: "58%",
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
+    width: "58%", height: 48, borderRadius: 14, borderWidth: 1, borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center", paddingHorizontal: 14,
   },
-
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 14,
-    color: "#0F172A",
-  },
-
+  searchInput: { flex: 1, marginLeft: 10, fontSize: 14, color: "#0F172A" },
   sortButton: {
-    width: "38%",
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
+    width: "38%", height: 48, borderRadius: 14, borderWidth: 1, borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF", flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 6,
   },
+  sortButtonText: { fontSize: 14, fontWeight: "700", color: "#334155" },
 
-  sortButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#334155",
-  },
+  loadingWrapper: { paddingVertical: 40, alignItems: "center" },
+  emptyWrapper: { paddingVertical: 40, alignItems: "center", paddingHorizontal: 20 },
+  emptyTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A", marginBottom: 8 },
+  emptyText: { fontSize: 14, color: "#64748B", textAlign: "center", lineHeight: 22 },
 
-  loadingWrapper: {
-    paddingVertical: 40,
-    alignItems: "center",
-  },
-
-  emptyWrapper: {
-    paddingVertical: 40,
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 8,
-  },
-
-  emptyText: {
-    fontSize: 14,
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-
-  recordCard: {
-    flexDirection: "row",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-
+  recordCard: { flexDirection: "row", padding: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   recordIconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-    marginTop: 2,
+    width: 56, height: 56, borderRadius: 18, alignItems: "center",
+    justifyContent: "center", marginRight: 16, marginTop: 2,
   },
+  recordContent: { flex: 1 },
+  recordTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 },
+  recordTitle: { flex: 1, fontSize: 18, fontWeight: "800", color: "#0F172A", marginRight: 12 },
 
-  recordContent: {
-    flex: 1,
-  },
+  statusBadge: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
+  statusBadgeDone: { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" },
+  statusBadgePending: { backgroundColor: "#FEF3C7", borderColor: "#FCD34D" },
+  statusText: { fontSize: 13, fontWeight: "700" },
+  statusTextDone: { color: "#15803D" },
+  statusTextPending: { color: "#B45309" },
 
-  recordTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 10,
-  },
+  recordMetaRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+  recordMetaText: { marginLeft: 8, fontSize: 14, color: "#64748B" },
+  recordDescription: { fontSize: 15, color: "#475569", lineHeight: 24, marginBottom: 16 },
 
-  recordTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginRight: 12,
-  },
-
-  statusBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-
-  statusBadgeDone: {
-    backgroundColor: "#ECFDF5",
-    borderColor: "#A7F3D0",
-  },
-
-  statusBadgePending: {
-    backgroundColor: "#FEF3C7",
-    borderColor: "#FCD34D",
-  },
-
-  statusText: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  statusTextDone: {
-    color: "#15803D",
-  },
-
-  statusTextPending: {
-    color: "#B45309",
-  },
-
-  recordMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-
-  recordMetaText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#64748B",
-  },
-
-  recordDescription: {
-    fontSize: 15,
-    color: "#475569",
-    lineHeight: 24,
-    marginBottom: 16,
-  },
-
+  cardActionRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   detailsButton: {
-    alignSelf: "flex-start",
-    height: 46,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    alignSelf: "flex-start", height: 46, paddingHorizontal: 20, borderRadius: 14,
+    borderWidth: 1, borderColor: "#CBD5E1", justifyContent: "center",
+    alignItems: "center", backgroundColor: "#FFFFFF",
+  },
+  detailsButtonText: { fontSize: 14, fontWeight: "800", color: "#334155" },
+  editSmallButton: {
+    width: 42, height: 42, borderRadius: 14, backgroundColor: "#ECFDF5",
+    borderWidth: 1, borderColor: "#BCE7DF", alignItems: "center", justifyContent: "center",
+  },
+  deleteSmallButton: {
+    width: 42, height: 42, borderRadius: 14, backgroundColor: "#FEF2F2",
+    borderWidth: 1, borderColor: "#FECACA", alignItems: "center", justifyContent: "center",
   },
 
-  detailsButtonText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#334155",
-  },
-
-  loadMoreButton: {
-    paddingVertical: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  loadMoreText: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#0F9D92",
-  },
+  loadMoreButton: { paddingVertical: 18, alignItems: "center", justifyContent: "center" },
+  loadMoreText: { fontSize: 15, fontWeight: "800", color: "#0F9D92" },
 
   modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.25)",
-    justifyContent: "center",
-    padding: 18,
+    flex: 1, backgroundColor: "rgba(15, 23, 42, 0.25)", justifyContent: "center", padding: 18,
   },
-
   modalCard: {
-    maxHeight: "90%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    maxHeight: "90%", backgroundColor: "#FFFFFF", borderRadius: 22, padding: 18,
+    borderWidth: 1, borderColor: "#E5E7EB",
   },
-
   detailsModalCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    backgroundColor: "#FFFFFF", borderRadius: 22, padding: 20,
+    borderWidth: 1, borderColor: "#E5E7EB",
   },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
 
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 18,
-  },
-
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#334155",
-    marginBottom: 8,
-    marginTop: 10,
-  },
-
+  fieldLabel: { fontSize: 13, fontWeight: "700", color: "#334155", marginBottom: 8, marginTop: 10 },
   input: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    fontSize: 14,
-    color: "#0F172A",
+    height: 48, borderRadius: 14, borderWidth: 1, borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF", paddingHorizontal: 14, fontSize: 14, color: "#0F172A",
   },
-
-  textArea: {
-    height: 90,
-    textAlignVertical: "top",
-    paddingTop: 14,
+  dateInput: {
+    height: 48, borderRadius: 14, borderWidth: 1, borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF", paddingHorizontal: 14, flexDirection: "row",
+    alignItems: "center", justifyContent: "space-between",
   },
+  dateText: { fontSize: 14, color: "#0F172A" },
+  datePlaceholder: { fontSize: 14, color: "#94A3B8" },
+  textArea: { height: 90, textAlignVertical: "top", paddingTop: 14 },
 
   optionChip: {
-    height: 38,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-    marginBottom: 6,
+    height: 38, paddingHorizontal: 14, borderRadius: 20, backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "#CBD5E1", justifyContent: "center",
+    alignItems: "center", marginRight: 8, marginBottom: 6,
   },
+  optionChipActive: { backgroundColor: "#DBF5F1", borderColor: "#0F9D92" },
+  optionChipText: { fontSize: 13, fontWeight: "700", color: "#475569" },
+  optionChipTextActive: { color: "#0F9D92" },
+  statusOptionsRow: { flexDirection: "row", flexWrap: "wrap" },
 
-  optionChipActive: {
-    backgroundColor: "#DBF5F1",
-    borderColor: "#0F9D92",
-  },
-
-  optionChipText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#475569",
-  },
-
-  optionChipTextActive: {
-    color: "#0F9D92",
-  },
-
-  statusOptionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 22,
-  },
-
+  modalButtons: { flexDirection: "row", justifyContent: "space-between", marginTop: 22 },
   cancelButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
+    flex: 1, height: 48, borderRadius: 14, borderWidth: 1, borderColor: "#CBD5E1",
+    alignItems: "center", justifyContent: "center", marginRight: 8,
   },
-
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#334155",
-  },
-
+  cancelButtonText: { fontSize: 14, fontWeight: "800", color: "#334155" },
   saveButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#0F9D92",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 8,
+    flex: 1, height: 48, borderRadius: 14, backgroundColor: "#0F9D92",
+    alignItems: "center", justifyContent: "center", marginLeft: 8,
   },
+  saveButtonText: { fontSize: 14, fontWeight: "800", color: "#FFFFFF" },
 
-  saveButtonText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
+  detailTitle: { fontSize: 20, fontWeight: "800", color: "#0F172A", marginBottom: 16 },
+  detailLine: { fontSize: 15, color: "#475569", lineHeight: 24, marginBottom: 8 },
+  detailLabel: { fontWeight: "800", color: "#0F172A" },
 
-  detailTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 16,
+  detailActionsRow: { flexDirection: "row", gap: 8, marginTop: 18 },
+  detailEditButton: {
+    flex: 1, height: 46, borderRadius: 14, backgroundColor: "#ECFDF5",
+    borderWidth: 1, borderColor: "#BCE7DF", alignItems: "center", justifyContent: "center",
   },
-
-  detailLine: {
-    fontSize: 15,
-    color: "#475569",
-    lineHeight: 24,
-    marginBottom: 8,
+  detailEditButtonText: { color: "#0F9D92", fontSize: 14, fontWeight: "800" },
+  detailStatusButton: {
+    flex: 1, height: 46, borderRadius: 14, backgroundColor: "#EFF6FF",
+    borderWidth: 1, borderColor: "#BFDBFE", alignItems: "center", justifyContent: "center",
   },
-
-  detailLabel: {
-    fontWeight: "800",
-    color: "#0F172A",
+  detailStatusButtonText: { color: "#2563EB", fontSize: 13, fontWeight: "800" },
+  detailDeleteButton: {
+    marginTop: 10, height: 46, borderRadius: 14, backgroundColor: "#FEF2F2",
+    borderWidth: 1, borderColor: "#FECACA", alignItems: "center", justifyContent: "center",
   },
+  detailDeleteButtonText: { color: "#DC2626", fontSize: 14, fontWeight: "800" },
 });

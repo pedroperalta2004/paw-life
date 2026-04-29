@@ -4,7 +4,7 @@
     "slug": "PawLife",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/pawlife_logo.png",
     "scheme": "pawlife",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -40,7 +40,8 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
