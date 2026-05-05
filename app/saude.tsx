@@ -28,6 +28,7 @@ type HealthRecord = {
   descricao: string | null;
   data_registo: string;
   proxima_data: string | null;
+  hora_registo: string | null;
   veterinario: string | null;
   ficheiro_url: string | null;
   data_criacao: string;
@@ -52,6 +53,11 @@ function formatDate(dateString: string | null) {
 
 function formatInputDate(date: Date) {
   return date.toISOString().split("T")[0];
+}
+
+function formatTime(time: string | null) {
+  if (!time) return "--";
+  return time.slice(0, 5);
 }
 
 function formatRelativeDays(dateString: string | null) {
@@ -138,6 +144,7 @@ export default function SaudeScreen() {
   const [formDescription, setFormDescription] = useState("");
   const [formDate, setFormDate] = useState("");
   const [formNextDate, setFormNextDate] = useState("");
+  const [formTime, setFormTime] = useState("");
   const [formVeterinario, setFormVeterinario] = useState("");
   const [formLocal, setFormLocal] = useState("");
   const [formStatus, setFormStatus] = useState("Pendente");
@@ -204,6 +211,7 @@ export default function SaudeScreen() {
     setFormDescription("");
     setFormDate("");
     setFormNextDate("");
+    setFormTime("");
     setFormVeterinario("");
     setFormLocal("");
     setFormStatus("Pendente");
@@ -227,6 +235,7 @@ export default function SaudeScreen() {
     setFormDescription(record.descricao ?? "");
     setFormDate(record.data_registo ?? "");
     setFormNextDate(record.proxima_data ?? "");
+    setFormTime(record.hora_registo ? record.hora_registo.slice(0, 5) : "");
     setFormVeterinario(record.veterinario ?? "");
     setFormLocal(record.local ?? "");
     setFormStatus(record.estado ?? "Pendente");
@@ -251,6 +260,7 @@ export default function SaudeScreen() {
         descricao: formDescription.trim() || null,
         data_registo: formDate.trim(),
         proxima_data: formNextDate.trim() || null,
+        hora_registo: formTime.trim() || null,
         veterinario: formVeterinario.trim() || null,
         local: formLocal.trim() || null,
         estado: formStatus,
@@ -618,7 +628,7 @@ export default function SaudeScreen() {
                             : styles.statusTextDone,
                         ]}
                       >
-                        {record.estado ?? "Concluído"}
+                        {record.estado ?? "Pendente"}
                       </Text>
                     </Pressable>
                   </View>
@@ -627,6 +637,13 @@ export default function SaudeScreen() {
                     <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
                     <Text style={styles.recordMetaText}>
                       {formatDate(record.data_registo)} {getAnimalName(record.id_animal)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.recordMetaRow}>
+                    <Ionicons name="time-outline" size={16} color="#94A3B8" />
+                    <Text style={styles.recordMetaText}>
+                      {formatTime(record.hora_registo)}
                     </Text>
                   </View>
 
@@ -789,6 +806,16 @@ export default function SaudeScreen() {
                 />
               )}
 
+              <Text style={styles.fieldLabel}>Hora</Text>
+              <TextInput
+                style={styles.input}
+                value={formTime}
+                onChangeText={setFormTime}
+                placeholder="Ex: 10:30"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numbers-and-punctuation"
+              />
+
               <Text style={styles.fieldLabel}>Veterinário / Médico</Text>
               <TextInput
                 style={styles.input}
@@ -882,6 +909,10 @@ export default function SaudeScreen() {
                 <Text style={styles.detailLine}>
                   <Text style={styles.detailLabel}>Próxima data: </Text>
                   {formatDate(selectedRecord.proxima_data)}
+                </Text>
+                <Text style={styles.detailLine}>
+                  <Text style={styles.detailLabel}>Hora: </Text>
+                  {formatTime(selectedRecord.hora_registo)}
                 </Text>
                 <Text style={styles.detailLine}>
                   <Text style={styles.detailLabel}>Veterinário: </Text>
@@ -1072,54 +1103,178 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF", paddingHorizontal: 14, fontSize: 14, color: "#0F172A",
   },
   dateInput: {
-    height: 48, borderRadius: 14, borderWidth: 1, borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF", paddingHorizontal: 14, flexDirection: "row",
-    alignItems: "center", justifyContent: "space-between",
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  dateText: { fontSize: 14, color: "#0F172A" },
-  datePlaceholder: { fontSize: 14, color: "#94A3B8" },
-  textArea: { height: 90, textAlignVertical: "top", paddingTop: 14 },
+
+  dateText: {
+    fontSize: 14,
+    color: "#0F172A",
+  },
+
+  datePlaceholder: {
+    fontSize: 14,
+    color: "#94A3B8",
+  },
+
+  textArea: {
+    height: 90,
+    textAlignVertical: "top",
+    paddingTop: 14,
+  },
 
   optionChip: {
-    height: 38, paddingHorizontal: 14, borderRadius: 20, backgroundColor: "#FFFFFF",
-    borderWidth: 1, borderColor: "#CBD5E1", justifyContent: "center",
-    alignItems: "center", marginRight: 8, marginBottom: 6,
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+    marginBottom: 6,
   },
-  optionChipActive: { backgroundColor: "#DBF5F1", borderColor: "#0F9D92" },
-  optionChipText: { fontSize: 13, fontWeight: "700", color: "#475569" },
-  optionChipTextActive: { color: "#0F9D92" },
-  statusOptionsRow: { flexDirection: "row", flexWrap: "wrap" },
 
-  modalButtons: { flexDirection: "row", justifyContent: "space-between", marginTop: 22 },
+  optionChipActive: {
+    backgroundColor: "#DBF5F1",
+    borderColor: "#0F9D92",
+  },
+
+  optionChipText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#475569",
+  },
+
+  optionChipTextActive: {
+    color: "#0F9D92",
+  },
+
+  statusOptionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 22,
+  },
+
   cancelButton: {
-    flex: 1, height: 48, borderRadius: 14, borderWidth: 1, borderColor: "#CBD5E1",
-    alignItems: "center", justifyContent: "center", marginRight: 8,
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
   },
-  cancelButtonText: { fontSize: 14, fontWeight: "800", color: "#334155" },
+
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#334155",
+  },
+
   saveButton: {
-    flex: 1, height: 48, borderRadius: 14, backgroundColor: "#0F9D92",
-    alignItems: "center", justifyContent: "center", marginLeft: 8,
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#0F9D92",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
   },
-  saveButtonText: { fontSize: 14, fontWeight: "800", color: "#FFFFFF" },
 
-  detailTitle: { fontSize: 20, fontWeight: "800", color: "#0F172A", marginBottom: 16 },
-  detailLine: { fontSize: 15, color: "#475569", lineHeight: 24, marginBottom: 8 },
-  detailLabel: { fontWeight: "800", color: "#0F172A" },
+  saveButtonText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
 
-  detailActionsRow: { flexDirection: "row", gap: 8, marginTop: 18 },
+  detailTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 16,
+  },
+
+  detailLine: {
+    fontSize: 15,
+    color: "#475569",
+    lineHeight: 24,
+    marginBottom: 8,
+  },
+
+  detailLabel: {
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+
+  detailActionsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 18,
+  },
+
   detailEditButton: {
-    flex: 1, height: 46, borderRadius: 14, backgroundColor: "#ECFDF5",
-    borderWidth: 1, borderColor: "#BCE7DF", alignItems: "center", justifyContent: "center",
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#BCE7DF",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  detailEditButtonText: { color: "#0F9D92", fontSize: 14, fontWeight: "800" },
+
+  detailEditButtonText: {
+    color: "#0F9D92",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
   detailStatusButton: {
-    flex: 1, height: 46, borderRadius: 14, backgroundColor: "#EFF6FF",
-    borderWidth: 1, borderColor: "#BFDBFE", alignItems: "center", justifyContent: "center",
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  detailStatusButtonText: { color: "#2563EB", fontSize: 13, fontWeight: "800" },
+
+  detailStatusButtonText: {
+    color: "#2563EB",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
   detailDeleteButton: {
-    marginTop: 10, height: 46, borderRadius: 14, backgroundColor: "#FEF2F2",
-    borderWidth: 1, borderColor: "#FECACA", alignItems: "center", justifyContent: "center",
+    marginTop: 10,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  detailDeleteButtonText: { color: "#DC2626", fontSize: 14, fontWeight: "800" },
+
+  detailDeleteButtonText: {
+    color: "#DC2626",
+    fontSize: 14,
+    fontWeight: "800",
+  },
 });
