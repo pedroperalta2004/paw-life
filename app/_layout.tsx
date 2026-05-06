@@ -150,20 +150,20 @@ function CustomDrawerContent(props: any) {
 
         <MenuItem
           label="Atividades"
-          route="walks"
+          route="atividade"
           currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("walks")}
+          onPress={() => props.navigation.navigate("atividade")}
           icon={
             <Ionicons
               name="pulse-outline"
               size={17}
-              color={currentRoute === "walks" ? ACTIVE_GREEN : "#64748B"}
+              color={currentRoute === "atividade" ? ACTIVE_GREEN : "#64748B"}
             />
           }
         />
 
         <MenuItem
-          label="Stock de Alimentação"
+          label="Alimentação"
           route="alimentacao"
           currentRoute={currentRoute}
           onPress={() => props.navigation.navigate("alimentacao")}
@@ -177,15 +177,15 @@ function CustomDrawerContent(props: any) {
         />
 
         <MenuItem
-          label={"Associações\nde Adoção"}
-          route="adoption"
+          label={"Associações de \nAdoção"}
+          route="adocao"
           currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("adoption")}
+          onPress={() => props.navigation.navigate("adocao")}
           icon={
             <Ionicons
               name="heart-outline"
               size={17}
-              color={currentRoute === "adoption" ? ACTIVE_GREEN : "#64748B"}
+              color={currentRoute === "adocao" ? ACTIVE_GREEN : "#64748B"}
             />
           }
         />
@@ -324,7 +324,7 @@ export default function RootLayout() {
         headerShown: true,
         overlayColor: "rgba(0,0,0,0.25)",
         drawerStyle: {
-          width: 255,
+          width: 270,
           borderTopRightRadius: 28,
           borderBottomRightRadius: 28,
           backgroundColor: "#FFFFFF",
@@ -397,8 +397,8 @@ export default function RootLayout() {
       <Drawer.Screen name="dashboard" options={{ title: "" }} />
       <Drawer.Screen name="animais" options={{ title: "" }} />
       <Drawer.Screen name="alimentacao" options={{ title: "" }} />
-      <Drawer.Screen name="walks" options={{ title: "" }} />
-      <Drawer.Screen name="adoption" options={{ title: "" }} />
+      <Drawer.Screen name="atividade" options={{ title: "" }} />
+      <Drawer.Screen name="adocao" options={{ title: "" }} />
       <Drawer.Screen name="profile" options={{ title: "" }} />
       <Drawer.Screen name="saude" options={{ title: "" }} />
       <Drawer.Screen name="calendario" options={{ title: "" }} />
@@ -544,8 +544,8 @@ const styles = StyleSheet.create({
   },
 
   topBarLogoBox: {
-    width: 24,
-    height: 24,
+    width: 27,
+    height: 27,
     borderRadius: 6,
     backgroundColor: "#14B8A6",
     alignItems: "center",
@@ -560,8 +560,8 @@ const styles = StyleSheet.create({
   },
 
   topBarLogoImage: {
-    width: 22,
-    height: 22,
+    width: 23,
+    height: 23,
   },
 
   topBarAppName: {

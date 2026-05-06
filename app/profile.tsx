@@ -183,30 +183,9 @@ export default function ProfileScreen() {
     return filePath;
   };
 
-  const pickImageFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert(
-        "Permissão necessária",
-        "É necessário permitir acesso à galeria."
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-
-    if (result.canceled) return;
-
+  const saveProfilePhoto = async (newUri: string) => {
     try {
       setUploadingPhoto(true);
-
-      const newUri = result.assets[0].uri;
 
       if (photoPath) {
         await deleteOldProfileImage(photoPath);
@@ -254,6 +233,59 @@ export default function ProfileScreen() {
     }
   };
 
+  const pickImageFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Permissão necessária",
+        "É necessário permitir acesso à galeria."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+
+    if (result.canceled) return;
+
+    await saveProfilePhoto(result.assets[0].uri);
+  };
+
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Permissão necessária",
+        "É necessário permitir acesso à câmara."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+
+    if (result.canceled) return;
+
+    await saveProfilePhoto(result.assets[0].uri);
+  };
+
+  const openPhotoMenu = () => {
+    Alert.alert("Alterar Foto", "Escolha uma opção", [
+      { text: "Tirar Foto", onPress: takePhoto },
+      { text: "Escolher da Galeria", onPress: pickImageFromGallery },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
+
   const initials = useMemo(() => getInitials(fullName), [fullName]);
 
   return (
@@ -275,7 +307,7 @@ export default function ProfileScreen() {
           <>
             <Pressable
               style={styles.avatar}
-              onPress={pickImageFromGallery}
+              onPress={openPhotoMenu}
               disabled={uploadingPhoto}
             >
               {uploadingPhoto ? (
@@ -292,9 +324,6 @@ export default function ProfileScreen() {
             </Pressable>
 
             <Text style={styles.title}>O Meu Perfil</Text>
-            <Text style={styles.subtitle}>
-              Toque na fotografia para atualizar a imagem de perfil.
-            </Text>
 
             <View style={styles.card}>
               <Text style={styles.label}>Nome</Text>
@@ -339,7 +368,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F3F4F6",
   },
 
   container: {
@@ -375,8 +404,8 @@ const styles = StyleSheet.create({
 
   editBadge: {
     position: "absolute",
-    right: 2,
-    bottom: 2,
+    right: 0,
+    bottom: 0,
     width: 28,
     height: 28,
     borderRadius: 14,
@@ -391,7 +420,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "800",
     color: "#0F172A",
-    marginBottom: 8,
+    marginBottom: 14,
   },
 
   subtitle: {

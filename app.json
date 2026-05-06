@@ -4,7 +4,7 @@
     "slug": "PawLife",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/pawlife_logo.png",
+    "icon": "./assets/images/pawlife_inicio.png",
     "scheme": "pawlife",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

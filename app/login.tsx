@@ -5,8 +5,11 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +22,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -35,9 +39,7 @@ export default function LoginScreen() {
         password,
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       router.replace("/dashboard");
     } catch (error: any) {
@@ -52,94 +54,118 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.topSection}>
-          <View style={styles.logoBox}>
-            <Image
-              source={require("../assets/images/pawlife_logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.container}>
+            <View style={styles.topSection}>
+              <View style={styles.logoBox}>
+                <Image
+                  source={require("../assets/images/pawlife_logo.png")}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
 
-          <Text style={styles.appName}>PawLife</Text>
-          <Text style={styles.subtitle}>
-            A plataforma completa para o bem-estar do seu melhor amigo.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Aceda à sua conta</Text>
-
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="mail-outline"
-                size={18}
-                color="#94A3B8"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="user@exemplo.com"
-                placeholderTextColor="#94A3B8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
+              <Text style={styles.appName}>PawLife</Text>
+              <Text style={styles.subtitle}>
+                A plataforma completa para o bem-estar do seu melhor amigo.
+              </Text>
             </View>
-          </View>
 
-          <View style={styles.fieldBlock}>
-            <View style={styles.passwordHeader}>
-              <Text style={styles.label}>Palavra-passe</Text>
-              <Pressable>
-                <Text style={styles.forgotPassword}>
-                  Esqueceu-se da palavra-passe?
-                </Text>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Aceda à sua conta</Text>
+
+              <View style={styles.fieldBlock}>
+                <Text style={styles.label}>Email</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons
+                    name="mail-outline"
+                    size={18}
+                    color="#94A3B8"
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="user@exemplo.com"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.fieldBlock}>
+                <View style={styles.passwordHeader}>
+                  <Text style={styles.label}>Palavra-passe</Text>
+                  <Pressable>
+                    <Text style={styles.forgotPassword}>
+                      Esqueceu-se da palavra-passe?
+                    </Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.inputWrapper}>
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={18}
+                    color="#94A3B8"
+                    style={styles.inputIcon}
+                  />
+
+                  <TextInput
+                    style={styles.input}
+                    placeholder="••••••••••••"
+                    placeholderTextColor="#94A3B8"
+                    secureTextEntry={!showPassword}
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+
+                  <Pressable
+                    onPress={() => setShowPassword((prev) => !prev)}
+                    hitSlop={10}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color="#94A3B8"
+                    />
+                  </Pressable>
+                </View>
+              </View>
+
+              <Pressable
+                style={[styles.loginButton, loading && styles.buttonDisabled]}
+                onPress={handleLogin}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.loginButtonText}>Entrar</Text>
+                )}
               </Pressable>
             </View>
 
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={18}
-                color="#94A3B8"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••••••"
-                placeholderTextColor="#94A3B8"
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Ainda não tem conta? </Text>
+              <Pressable onPress={() => router.push("/registar")}>
+                <Text style={styles.footerLink}>Criar agora</Text>
+              </Pressable>
             </View>
           </View>
-
-          <Pressable
-            style={[styles.loginButton, loading && styles.buttonDisabled]}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.loginButtonText}>Entrar</Text>
-            )}
-          </Pressable>
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Ainda não tem conta? </Text>
-          <Pressable onPress={() => router.push("/registar")}>
-            <Text style={styles.footerLink}>Criar agora</Text>
-          </Pressable>
-        </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -150,10 +176,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
 
-  container: {
+  keyboardView: {
     flex: 1,
+  },
+
+  scrollContainer: {
+    flexGrow: 1,
+  },
+
+  container: {
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 24,
+    paddingVertical: 28,
   },
 
   topSection: {

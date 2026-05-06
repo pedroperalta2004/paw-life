@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import {
   Ionicons,
@@ -55,6 +56,7 @@ export default function PetsScreen() {
   const [savingAnimal, setSavingAnimal] = useState(false);
 
   const [editingAnimal, setEditingAnimal] = useState<Animal | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAnimals();
@@ -420,6 +422,12 @@ export default function PetsScreen() {
     );
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAnimals();
+    setRefreshing(false);
+  };
+
   const renderAnimalCard = (animal: Animal) => {
     return (
       <View key={animal.id_animal} style={styles.petCard}>
@@ -525,7 +533,18 @@ export default function PetsScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView 
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0F9D92"]}
+            tintColor="#0F9D92"
+          />
+        }
+      >
         <Text style={styles.pageTitle}>Os Meus Animais</Text>
         <Text style={styles.pageSubtitle}>
           Faça a gestão dos perfis e informações básicas dos seus animais.
@@ -584,16 +603,19 @@ export default function PetsScreen() {
 
               <View style={styles.modalSeparator} />
 
-              <Pressable style={styles.photoCircle} onPress={openPhotoMenu}>
-                {petImage ? (
-                  <Image source={{ uri: petImage }} style={styles.photoPreview} />
-                ) : (
-                  <>
-                    <Ionicons name="camera-outline" size={28} color="#94A3B8" />
-                    <Text style={styles.photoText}>Adicionar Foto</Text>
-                  </>
-                )}
-              </Pressable>
+              <View style={styles.photoWrapper}>
+                <Pressable style={styles.photoCircle} onPress={openPhotoMenu}>
+                  {petImage ? (
+                    <Image source={{ uri: petImage }} style={styles.photoPreview} />
+                  ) : (
+                    <Ionicons name="paw-outline" size={38} color="#94A3B8" />
+                  )}
+                </Pressable>
+
+                <Pressable style={styles.cameraBadge} onPress={openPhotoMenu}>
+                  <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
+                </Pressable>
+              </View>
 
               <View style={styles.fieldBlock}>
                 <Text style={styles.fieldLabel}>Nome do Animal</Text>
@@ -1025,25 +1047,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
 
-  photoCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    alignSelf: "center",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 22,
-    overflow: "hidden",
-  },
-
-  photoPreview: {
-    width: "100%",
-    height: "100%",
-  },
-
   photoText: {
     marginTop: 8,
     fontSize: 12,
@@ -1147,4 +1150,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
   },
+
+  photoWrapper: {
+  alignSelf: "center",
+  position: "relative",
+  marginBottom: 22,
+},
+
+photoCircle: {
+  width: 120,
+  height: 120,
+  borderRadius: 60,
+  backgroundColor: "#F1F5F9",
+  borderWidth: 1,
+  borderColor: "#E5E7EB",
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+},
+
+photoPreview: {
+  width: "100%",
+  height: "100%",
+},
+
+cameraBadge: {
+  position: "absolute",
+  bottom: 1,
+  right: 4,
+  width: 32,
+  height: 32,
+  borderRadius: 16,
+  backgroundColor: "#0F9D92",
+  alignItems: "center",
+  justifyContent: "center",
+  borderWidth: 2,
+  borderColor: "#FFFFFF",
+},
 });

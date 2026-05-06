@@ -9,6 +9,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons, Feather, FontAwesome5 } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -153,6 +154,7 @@ export default function SaudeScreen() {
   const [showNextDatePicker, setShowNextDatePicker] = useState(false);
 
   const [visibleCount, setVisibleCount] = useState(5);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -452,9 +454,26 @@ export default function SaudeScreen() {
     return animals.find((a) => a.id_animal === id)?.nome ?? "--";
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView 
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#0F9D92"]}
+            tintColor="#0F9D92"
+          />
+        }
+      >
         <Text style={styles.pageTitle}>Histórico de Saúde</Text>
         <Text style={styles.pageSubtitle}>
           Acompanhe vacinas, consultas, exames e medicamentos.
