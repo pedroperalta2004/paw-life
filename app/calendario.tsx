@@ -22,6 +22,7 @@ type Animal = {
 type CalendarEvent = {
   id: string;
   date: string;
+  time: string | null;
   title: string;
   animalName: string;
   type: string;
@@ -94,6 +95,12 @@ function generateMonthWeeks(year: number, month: number) {
   return weeks;
 }
 
+function formatTime(time: string | null) {
+  if (!time) return "Sem hora definida";
+
+  return time.slice(0, 5);
+}
+
 export default function CalendarioScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -164,9 +171,10 @@ export default function CalendarioScreen() {
           return {
             id: record.id_registo_saude,
             date: eventDate,
+            time: record.hora_registo ?? null,
             title: record.titulo,
             animalName,
-            type: record.tipo_registo,
+            type: record.tipo_registo,  
             location: record.local ?? "Sem local definido",
             color: getEventColor(record.tipo_registo),
           };
@@ -368,7 +376,7 @@ export default function CalendarioScreen() {
 
                 <View style={styles.eventInfoRow}>
                   <Ionicons name="time-outline" size={16} color="#64748B" />
-                  <Text style={styles.eventInfoText}>Sem hora definida</Text>
+                  <Text style={styles.eventInfoText}>{formatTime(event.time)}</Text>
                 </View>
 
                 <View style={styles.eventInfoRow}>
