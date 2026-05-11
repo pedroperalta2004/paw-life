@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,8 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../src/lib/supabase";
+import { BackHandler } from "react-native";
+import { useFocusEffect } from "expo-router";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -74,6 +77,17 @@ export default function RegisterScreen() {
     router.replace("/login");
   };
 
+    useFocusEffect(
+      useCallback(() => {
+        const backHandler = BackHandler.addEventListener(
+          "hardwareBackPress",
+          () => true
+        );
+  
+        return () => backHandler.remove();
+      }, [])
+    );
+    
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -108,7 +122,7 @@ export default function RegisterScreen() {
               />
               <TextInput
                 style={styles.input}
-                placeholder="Ana Silva"
+                placeholder="John Doe"
                 placeholderTextColor="#94A3B8"
                 value={fullName}
                 onChangeText={setFullName}
@@ -127,7 +141,7 @@ export default function RegisterScreen() {
               />
               <TextInput
                 style={styles.input}
-                placeholder="ana@exemplo.com"
+                placeholder="user@exemplo.com"
                 placeholderTextColor="#94A3B8"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -146,14 +160,23 @@ export default function RegisterScreen() {
                 color="#94A3B8"
                 style={styles.inputIcon}
               />
+
               <TextInput
                 style={styles.input}
-                placeholder="••••••••"
+                placeholder="••••••••••••"
                 placeholderTextColor="#94A3B8"
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
               />
+
+              <Pressable onPress={() => setShowPassword((prev) => !prev)}>
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={20}
+                  color="#64748B"
+                />
+              </Pressable>
             </View>
           </View>
 

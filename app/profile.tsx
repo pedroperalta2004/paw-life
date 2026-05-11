@@ -10,6 +10,7 @@ import {
   Alert,
   ScrollView,
   RefreshControl,
+  DeviceEventEmitter,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -66,7 +67,10 @@ export default function ProfileScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const photoUrl = useMemo(() => getPublicUrlFromPath(photoPath), [photoPath]);
+  const photoUrl = useMemo(() => {
+    const url = getPublicUrlFromPath(photoPath);
+    return url ? `${url}?t=${Date.now()}` : null;
+  }, [photoPath]);
 
   useEffect(() => {
     loadProfile();
@@ -187,10 +191,6 @@ export default function ProfileScreen() {
     try {
       setUploadingPhoto(true);
 
-      if (photoPath) {
-        await deleteOldProfileImage(photoPath);
-      }
-
       const uploadedPath = await uploadProfilePhoto(newUri);
 
       const {
@@ -201,6 +201,8 @@ export default function ProfileScreen() {
         throw new Error("Utilizador não autenticado.");
       }
 
+      const oldPhotoPath = photoPath;
+
       const { data: updatedUser, error } = await supabase
         .from("utilizadores")
         .update({ foto_perfil_url: uploadedPath })
@@ -208,9 +210,7 @@ export default function ProfileScreen() {
         .select("id_utilizador, foto_perfil_url")
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       if (!updatedUser) {
         throw new Error("Não foi possível atualizar a fotografia do utilizador.");
@@ -218,9 +218,14 @@ export default function ProfileScreen() {
 
       setPhotoPath(uploadedPath);
 
-      await supabase.auth.updateUser({
-        data: { profile_refresh: Date.now() },
+      DeviceEventEmitter.emit("profileUpdated", {
+        nome: fullName,
+        foto_perfil_url: uploadedPath,
       });
+
+      if (oldPhotoPath) {
+        await deleteOldProfileImage(oldPhotoPath);
+      }
 
       Alert.alert("Sucesso", "Foto de perfil atualizada com sucesso.");
     } catch (error: any) {

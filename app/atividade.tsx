@@ -279,9 +279,7 @@ export default function AtividadeScreen() {
             id_utilizador: user.id,
             id_animal: selectedAnimalId,
             tipo: "Passeio",
-            titulo: selectedAnimal
-              ? `Passeio de ${selectedAnimal.nome}`
-              : "Passeio",
+            titulo: "Passeio",
             data_inicio: startTime.toISOString(),
             data_fim: endTime.toISOString(),
             duracao_min: durationMin,
@@ -317,6 +315,14 @@ export default function AtividadeScreen() {
   const getAnimalName = (id: string) => {
     return animals.find((animal) => animal.id_animal === id)?.nome ?? "--";
   };
+
+  const getActivityTitle = (activity: Activity) => {
+  if (activity.tipo.toLowerCase().includes("passeio")) {
+    return `Passeio de ${getAnimalName(activity.id_animal)}`;
+  }
+
+  return activity.titulo;
+};
 
   const totalMinutes = useMemo(() => {
     return activities.reduce((sum, item) => sum + (item.duracao_min ?? 0), 0);
@@ -540,7 +546,7 @@ export default function AtividadeScreen() {
               <Text style={styles.mapSmallLabel}>
                 ÚLTIMA ROTA ({getAnimalName(latestActivity.id_animal)})
               </Text>
-              <Text style={styles.mapTitle}>{latestActivity.titulo}</Text>
+              <Text style={styles.mapTitle}>{getActivityTitle(latestActivity)}</Text>
 
               <View style={styles.mapStatsRow}>
                 <View>
@@ -619,7 +625,7 @@ export default function AtividadeScreen() {
 
               <View style={styles.activityContent}>
                 <View style={styles.activityTopRow}>
-                  <Text style={styles.activityTitle}>{activity.titulo}</Text>
+                  <Text style={styles.activityTitle}>{getActivityTitle(activity)}</Text>
 
                   <View style={styles.petBadge}>
                     <Text style={styles.petBadgeText}>

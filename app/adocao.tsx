@@ -12,6 +12,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { Ionicons, Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../src/lib/supabase";
 
 type Association = {
@@ -34,6 +35,8 @@ export default function AdoptionScreen() {
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const hasSearch = searchText.trim().length > 0;
 
   useEffect(() => {
     loadAssociations();
@@ -71,11 +74,10 @@ export default function AdoptionScreen() {
   const filteredAssociations = useMemo(() => {
     const term = searchText.trim().toLowerCase();
 
-    if (!term) return associations;
+    if (!term) return [];
 
     return associations.filter((item) => {
       return (
-        item.nome?.toLowerCase().includes(term) ||
         item.cidade?.toLowerCase().includes(term) ||
         item.distrito?.toLowerCase().includes(term)
       );
@@ -114,6 +116,7 @@ export default function AdoptionScreen() {
 
     await Linking.openURL(finalUrl);
   };
+
   return (
     <View style={styles.screen}>
       <ScrollView
@@ -128,23 +131,33 @@ export default function AdoptionScreen() {
           />
         }
       >
-        <Text style={styles.pageTitle}>Associações de Adoção Perto de Mim</Text>
+        <Text style={styles.pageTitle}>
+          Associações de Adoção{"\n"}Perto de Mim
+        </Text>
+
         <Text style={styles.pageSubtitle}>
-          Encontre associações de adoção próximas e dê um lar a um animal necessitado
+          Encontre associações de adoção próximas e dê{"\n"}um lar a um animal
+          necessitado.
         </Text>
 
         <View style={styles.searchBox}>
           <Ionicons name="search-outline" size={20} color="#94A3B8" />
+
           <TextInput
             style={styles.searchInput}
-            placeholder="Pesquisar por nome, cidade ou distrito..."
+            placeholder="Pesquisar por cidade ou distrito..."
             placeholderTextColor="#94A3B8"
             value={searchText}
             onChangeText={setSearchText}
           />
         </View>
 
-        <View style={styles.mapCard}>
+        <LinearGradient
+          colors={["#D7FFF2", "#EEF7FF"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.mapCard}
+        >
           <View style={styles.mapIconMain}>
             <Feather name="navigation" size={42} color="#0F9D92" />
           </View>
@@ -160,22 +173,28 @@ export default function AdoptionScreen() {
           <View style={[styles.mapPin, styles.mapPinThree]}>
             <Ionicons name="location-outline" size={20} color="#FFFFFF" />
           </View>
+        </LinearGradient>
 
-          <Text style={styles.mapText}>
-            {filteredAssociations.length} associações encontradas
-          </Text>
-        </View>
+        <Text style={styles.searchHint}>
+          {!hasSearch
+            ? "Insira a cidade ou distrito para encontrar as associações"
+            : `${filteredAssociations.length} associações encontradas`}
+        </Text>
 
         {loading ? (
           <View style={styles.loadingWrapper}>
             <ActivityIndicator size="large" color="#0F9D92" />
           </View>
-        ) : filteredAssociations.length === 0 ? (
+        ) : !hasSearch ? null : filteredAssociations.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="heart-outline" size={38} color="#94A3B8" />
-            <Text style={styles.emptyTitle}>Sem associações encontradas</Text>
+
+            <Text style={styles.emptyTitle}>
+              Sem associações encontradas
+            </Text>
+
             <Text style={styles.emptyText}>
-              Tente pesquisar por outra cidade, distrito ou nome.
+              Tente pesquisar por outra cidade ou distrito.
             </Text>
           </View>
         ) : (
@@ -185,23 +204,31 @@ export default function AdoptionScreen() {
                 <Text style={styles.associationName}>{item.nome}</Text>
 
                 <View style={styles.ratingBadge}>
-                  <Ionicons name="heart" size={14} color="#F59E0B" />
-                  <Text style={styles.ratingText}>4.8</Text>
+                  <Ionicons name="paw" size={14} color="#F59E0B" />
                 </View>
               </View>
 
               <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={16} color="#64748B" />
+                <Ionicons
+                  name="location-outline"
+                  size={16}
+                  color="#64748B"
+                />
+
                 <Text style={styles.infoText}>
-                  {[item.cidade, item.distrito].filter(Boolean).join(", ")}
+                  {[item.cidade, item.distrito]
+                    .filter(Boolean)
+                    .join(", ")}
                 </Text>
               </View>
 
               <View style={styles.infoRow}>
                 <Ionicons name="pin-outline" size={16} color="#64748B" />
+
                 <Text style={styles.infoText}>
-                  {[item.morada, item.codigo_postal].filter(Boolean).join(", ") ||
-                    "Morada não definida"}
+                  {[item.morada, item.codigo_postal]
+                    .filter(Boolean)
+                    .join(", ") || "Morada não definida"}
                 </Text>
               </View>
 
@@ -233,10 +260,11 @@ export default function AdoptionScreen() {
                 >
                   <Ionicons
                     name="call-outline"
-                    size={16}
+                    size={15}
                     color="#FFFFFF"
-                    style={{ marginRight: 8 }}
+                    style={{ marginRight: 6 }}
                   />
+
                   <Text style={styles.callButtonText}>Ligar</Text>
                 </Pressable>
 
@@ -246,10 +274,11 @@ export default function AdoptionScreen() {
                 >
                   <Ionicons
                     name="mail-outline"
-                    size={16}
+                    size={15}
                     color="#334155"
-                    style={{ marginRight: 8 }}
+                    style={{ marginRight: 6 }}
                   />
+
                   <Text style={styles.emailButtonText}>Email</Text>
                 </Pressable>
 
@@ -259,11 +288,12 @@ export default function AdoptionScreen() {
                 >
                   <Ionicons
                     name="globe-outline"
-                    size={16}
+                    size={15}
                     color="#FFFFFF"
-                    style={{ marginRight: 8 }}
+                    style={{ marginRight: 6 }}
                   />
-                  <Text style={styles.websiteButtonText}>Website</Text>
+
+                  <Text style={styles.websiteButtonText}>Site</Text>
                 </Pressable>
               </View>
             </View>
@@ -298,7 +328,9 @@ export default function AdoptionScreen() {
 
             <View style={styles.infoItemRow}>
               <View style={styles.dot} />
-              <Text style={styles.infoItemText}>Adote com responsabilidade</Text>
+              <Text style={styles.infoItemText}>
+                Adote com responsabilidade
+              </Text>
             </View>
           </View>
         </View>
@@ -360,24 +392,22 @@ const styles = StyleSheet.create({
   mapCard: {
     height: 230,
     borderRadius: 18,
-    backgroundColor: "#E8FFF7",
     borderWidth: 1,
     borderColor: "#CFF7EA",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
+    marginBottom: 14,
     overflow: "hidden",
     position: "relative",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
   },
 
   mapIconMain: {
     marginBottom: 14,
-  },
-
-  mapText: {
-    fontSize: 14,
-    color: "#334155",
-    textAlign: "center",
   },
 
   mapPin: {
@@ -396,18 +426,26 @@ const styles = StyleSheet.create({
   },
 
   mapPinOne: {
-    top: 78,
+    top: 76,
     left: 70,
   },
 
   mapPinTwo: {
-    top: 112,
-    right: 82,
+    top: 40,
+    right: 60,
   },
 
   mapPinThree: {
-    bottom: 58,
-    right: 52,
+    bottom: 42,
+    right: 120,
+  },
+
+  searchHint: {
+    fontSize: 14,
+    color: "#0F9D92",
+    fontWeight: "800",
+    textAlign: "center",
+    marginBottom: 22,
   },
 
   loadingWrapper: {
@@ -559,12 +597,12 @@ const styles = StyleSheet.create({
 
   buttonsRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
   },
 
   callButton: {
     flex: 1,
-    height: 46,
+    height: 44,
     borderRadius: 12,
     backgroundColor: "#0F9D92",
     flexDirection: "row",
@@ -574,13 +612,13 @@ const styles = StyleSheet.create({
 
   callButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
   },
 
   emailButton: {
     flex: 1,
-    height: 46,
+    height: 44,
     borderRadius: 12,
     backgroundColor: "#EEF2F7",
     flexDirection: "row",
@@ -590,13 +628,13 @@ const styles = StyleSheet.create({
 
   emailButtonText: {
     color: "#334155",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
   },
 
   websiteButton: {
     flex: 1,
-    height: 46,
+    height: 44,
     borderRadius: 12,
     backgroundColor: "#1E2F4F",
     flexDirection: "row",
@@ -609,7 +647,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
-  
+
   infoCard: {
     backgroundColor: "#E8FFF7",
     borderRadius: 18,

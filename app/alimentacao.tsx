@@ -11,9 +11,15 @@ import {
   ActivityIndicator,
   Linking,
   RefreshControl,
+  Image,
 } from "react-native";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
+import { decode } from "base64-arraybuffer";
 import { supabase } from "../src/lib/supabase";
+
+const BUCKET_NAME = "food-images";
 
 type Animal = {
   id_animal: string;
@@ -28,6 +34,7 @@ type FoodPlan = {
   stock_total: number;
   porcao_diaria: number;
   link_compra: string | null;
+  foto_url: string | null;
   data_criacao: string;
 };
 
@@ -47,6 +54,7 @@ export default function FoodScreen() {
   const [formStockTotal, setFormStockTotal] = useState("");
   const [formPorcaoDiaria, setFormPorcaoDiaria] = useState("");
   const [formLinkCompra, setFormLinkCompra] = useState("");
+  const [formFoodImage, setFormFoodImage] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -118,6 +126,7 @@ export default function FoodScreen() {
     setFormStockTotal("");
     setFormPorcaoDiaria("");
     setFormLinkCompra("");
+    setFormFoodImage(null);
   };
 
   const openCreateModal = () => {
@@ -141,6 +150,7 @@ export default function FoodScreen() {
     setFormStockTotal(String(food.stock_total));
     setFormPorcaoDiaria(String(food.porcao_diaria));
     setFormLinkCompra(food.link_compra ?? "");
+    setFormFoodImage(food.foto_url ?? null);
     setShowModal(true);
   };
 
@@ -168,6 +178,116 @@ export default function FoodScreen() {
     }
 
     return `https://${url.trim()}`;
+  };
+
+  const pickImageFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Permissão necessária",
+        "É necessário permitir acesso à galeria."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [4, 3],
+    });
+
+    if (!result.canceled) {
+      setFormFoodImage(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        "Permissão necessária",
+        "É necessário permitir acesso à câmara."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [4, 3],
+    });
+
+    if (!result.canceled) {
+      setFormFoodImage(result.assets[0].uri);
+    }
+  };
+
+  const openPhotoMenu = () => {
+    Alert.alert("Foto da Ração", "Escolha uma opção", [
+      { text: "Tirar Foto", onPress: takePhoto },
+      { text: "Escolher da Galeria", onPress: pickImageFromGallery },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
+
+  const getStoragePathFromPublicUrl = (url: string | null) => {
+    if (!url) return null;
+
+    const marker = `/storage/v1/object/public/${BUCKET_NAME}/`;
+    const index = url.indexOf(marker);
+
+    if (index === -1) return null;
+
+    return url.substring(index + marker.length);
+  };
+
+  const deleteFoodImageFromStorage = async (publicUrl: string | null) => {
+    const path = getStoragePathFromPublicUrl(publicUrl);
+    if (!path) return;
+
+    const { error } = await supabase.storage.from(BUCKET_NAME).remove([path]);
+
+    if (error) {
+      console.log("Erro ao apagar imagem da ração:", error.message);
+    }
+  };
+
+  const uploadFoodImage = async (
+    imageUri: string,
+    userId: string,
+    foodId: string
+  ) => {
+    const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpg";
+    const filePath = `${userId}/${foodId}-${Date.now()}.${fileExt}`;
+
+    const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const arrayBuffer = decode(base64);
+
+    const contentType =
+      fileExt === "png"
+        ? "image/png"
+        : fileExt === "webp"
+        ? "image/webp"
+        : "image/jpeg";
+
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(filePath, arrayBuffer, {
+        contentType,
+        upsert: true,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+
+    return data.publicUrl;
   };
 
   const handleFeedPet = async (food: FoodPlan) => {
@@ -217,7 +337,10 @@ export default function FoodScreen() {
         )
       );
 
-      Alert.alert("Stock reposto", "O stock foi atualizado para o saco completo.");
+      Alert.alert(
+        "Stock reposto",
+        "O stock foi atualizado para o saco completo."
+      );
     } catch (error: any) {
       Alert.alert("Erro", error.message || "Não foi possível repor o stock.");
     }
@@ -247,7 +370,10 @@ export default function FoodScreen() {
       Number.isNaN(stockTotal) ||
       Number.isNaN(porcaoDiaria)
     ) {
-      Alert.alert("Valores inválidos", "Os campos numéricos devem conter números.");
+      Alert.alert(
+        "Valores inválidos",
+        "Os campos numéricos devem conter números."
+      );
       return;
     }
 
@@ -262,7 +388,20 @@ export default function FoodScreen() {
     try {
       setSaving(true);
 
-      const payload = {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) throw userError;
+      if (!user) throw new Error("Utilizador não autenticado.");
+
+      const pickedNewLocalImage =
+        formFoodImage &&
+        (formFoodImage.startsWith("file://") ||
+          formFoodImage.startsWith("content://"));
+
+      const basePayload = {
         id_animal: formAnimalId,
         nome_racao: formFoodName.trim(),
         stock_atual: stockAtual,
@@ -272,9 +411,26 @@ export default function FoodScreen() {
       };
 
       if (editingFood) {
+        let finalPhotoUrl = editingFood.foto_url;
+
+        if (pickedNewLocalImage) {
+          if (editingFood.foto_url) {
+            await deleteFoodImageFromStorage(editingFood.foto_url);
+          }
+
+          finalPhotoUrl = await uploadFoodImage(
+            formFoodImage,
+            user.id,
+            editingFood.id_alimentacao
+          );
+        }
+
         const { data, error } = await supabase
           .from("alimentacao")
-          .update(payload)
+          .update({
+            ...basePayload,
+            foto_url: finalPhotoUrl,
+          })
           .eq("id_alimentacao", editingFood.id_alimentacao)
           .select()
           .single();
@@ -289,15 +445,41 @@ export default function FoodScreen() {
 
         Alert.alert("Sucesso", "Plano de alimentação atualizado.");
       } else {
-        const { data, error } = await supabase
+        const { data: insertedFood, error: insertError } = await supabase
           .from("alimentacao")
-          .insert([payload])
+          .insert([
+            {
+              ...basePayload,
+              foto_url: null,
+            },
+          ])
           .select()
           .single();
 
-        if (error) throw error;
+        if (insertError) throw insertError;
 
-        setFoods((prev) => [data, ...prev]);
+        let finalFood = insertedFood;
+
+        if (pickedNewLocalImage) {
+          const publicUrl = await uploadFoodImage(
+            formFoodImage,
+            user.id,
+            insertedFood.id_alimentacao
+          );
+
+          const { data: updatedFood, error: updatePhotoError } = await supabase
+            .from("alimentacao")
+            .update({ foto_url: publicUrl })
+            .eq("id_alimentacao", insertedFood.id_alimentacao)
+            .select()
+            .single();
+
+          if (updatePhotoError) throw updatePhotoError;
+
+          finalFood = updatedFood;
+        }
+
+        setFoods((prev) => [finalFood, ...prev]);
         Alert.alert("Sucesso", "Plano de alimentação criado.");
       }
 
@@ -330,6 +512,10 @@ export default function FoodScreen() {
                 .eq("id_alimentacao", food.id_alimentacao);
 
               if (error) throw error;
+
+              if (food.foto_url) {
+                await deleteFoodImageFromStorage(food.foto_url);
+              }
 
               setFoods((prev) =>
                 prev.filter(
@@ -425,19 +611,30 @@ export default function FoodScreen() {
 
             return (
               <View key={item.id_alimentacao} style={styles.foodCard}>
-                <View style={styles.petBadge}>
-                  <Text style={styles.petBadgeText}>
-                    Para: {getAnimalName(item.id_animal)}
-                  </Text>
+                <View style={styles.petBadgeArea}>
+                  <View style={styles.petBadge}>
+                    <Text style={styles.petBadgeText}>
+                      Para: {getAnimalName(item.id_animal)}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={styles.imagePlaceholder}>
-                  <MaterialCommunityIcons
-                    name="package-variant-closed"
-                    size={44}
-                    color="#CBD5E1"
+                {item.foto_url ? (
+                  <Image
+                    source={{ uri: item.foto_url }}
+                    style={styles.foodImage}
+                    resizeMode="cover"
                   />
-                </View>
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <MaterialCommunityIcons
+                      name="package-variant-closed"
+                      size={50}
+                      color="#CBD5E1"
+                    />
+                    <Text style={styles.placeholderText}>Sem foto da ração</Text>
+                  </View>
+                )}
 
                 <View style={styles.infoSection}>
                   <Text style={styles.foodName}>{item.nome_racao}</Text>
@@ -566,11 +763,7 @@ export default function FoodScreen() {
                       style={styles.buyButton}
                       onPress={() => handleBuy(item.link_compra)}
                     >
-                      <Feather
-                        name="shopping-cart"
-                        size={16}
-                        color="#FFFFFF"
-                      />
+                      <Feather name="shopping-cart" size={16} color="#FFFFFF" />
                     </Pressable>
                   </View>
                 </View>
@@ -598,6 +791,33 @@ export default function FoodScreen() {
                   <Ionicons name="close" size={22} color="#94A3B8" />
                 </Pressable>
               </View>
+
+              <Text style={styles.fieldLabel}>Foto da Ração</Text>
+
+              <Pressable style={styles.photoPicker} onPress={openPhotoMenu}>
+                {formFoodImage ? (
+                  <Image
+                    source={{ uri: formFoodImage }}
+                    style={styles.photoPreview}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <>
+                    <MaterialCommunityIcons
+                      name="package-variant-closed"
+                      size={34}
+                      color="#94A3B8"
+                    />
+                    <Text style={styles.photoPickerText}>
+                      Adicionar foto do saco
+                    </Text>
+                  </>
+                )}
+
+                <View style={styles.photoCameraBadge}>
+                  <Ionicons name="camera-outline" size={15} color="#FFFFFF" />
+                </View>
+              </Pressable>
 
               <Text style={styles.fieldLabel}>Animal</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -780,38 +1000,54 @@ const styles = StyleSheet.create({
 
   foodCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     marginBottom: 18,
     overflow: "hidden",
   },
 
+  petBadgeArea: {
+    height: 58,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "flex-start",
+    paddingLeft: 10,
+  },
+
   petBadge: {
-    alignSelf: "flex-start",
-    marginTop: 12,
-    marginLeft: 14,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    zIndex: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
 
   petBadgeText: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#475569",
-    fontWeight: "600",
+    fontWeight: "800",
+  },
+
+  foodImage: {
+    width: "100%",
+    height: 210,
+    backgroundColor: "#EEF2F7",
   },
 
   imagePlaceholder: {
-    height: 115,
+    height: 210,
     backgroundColor: "#EEF2F7",
-    alignItems: "flex-end",
-    justifyContent: "flex-end",
-    padding: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  placeholderText: {
+    marginTop: 10,
+    fontSize: 13,
+    color: "#94A3B8",
+    fontWeight: "700",
   },
 
   infoSection: {
@@ -1004,6 +1240,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  refillButton: {
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "#F43F5E",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+
+  refillButtonText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.25)",
@@ -1039,6 +1291,45 @@ const styles = StyleSheet.create({
     color: "#334155",
     marginBottom: 8,
     marginTop: 10,
+  },
+
+  photoPicker: {
+    height: 190,
+    borderRadius: 18,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    overflow: "hidden",
+    position: "relative",
+  },
+
+  photoPreview: {
+    width: "100%",
+    height: "100%",
+  },
+
+  photoPickerText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: "#64748B",
+    fontWeight: "700",
+  },
+
+  photoCameraBadge: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#0F9D92",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
 
   input: {
@@ -1118,20 +1409,4 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#FFFFFF",
   },
-
-  refillButton: {
-    height: 34,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: "#F43F5E",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 8,
-  },
-
-refillButtonText: {
-  color: "#FFFFFF",
-  fontSize: 12,
-  fontWeight: "800",
-},
 });

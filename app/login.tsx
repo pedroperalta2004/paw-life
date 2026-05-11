@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,8 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../src/lib/supabase";
+import { BackHandler } from "react-native";
+import { useFocusEffect } from "expo-router";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -52,6 +54,17 @@ export default function LoginScreen() {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      const backHandler = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => true
+      );
+
+      return () => backHandler.remove();
+    }, [])
+  );
+  
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -107,7 +120,7 @@ export default function LoginScreen() {
               <View style={styles.fieldBlock}>
                 <View style={styles.passwordHeader}>
                   <Text style={styles.label}>Palavra-passe</Text>
-                  <Pressable>
+                  <Pressable onPress={() => router.push("/esqueceu_password")}>
                     <Text style={styles.forgotPassword}>
                       Esqueceu-se da palavra-passe?
                     </Text>
@@ -271,6 +284,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     color: "#10B3A3",
+    marginBottom: 6,
   },
 
   inputWrapper: {

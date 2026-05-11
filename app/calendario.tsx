@@ -9,15 +9,10 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../src/lib/supabase";
 
 const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-
-type Animal = {
-  id_animal: string;
-  nome: string;
-};
 
 type CalendarEvent = {
   id: string;
@@ -28,6 +23,7 @@ type CalendarEvent = {
   type: string;
   location: string;
   color: string;
+  estado: string | null;
 };
 
 function getMonthTitle(date: Date) {
@@ -38,7 +34,11 @@ function getMonthTitle(date: Date) {
 }
 
 function formatDateKey(date: Date) {
-  return date.toISOString().split("T")[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function formatShortDate(dateString: string) {
@@ -53,13 +53,22 @@ function formatShortDate(dateString: string) {
     .toUpperCase();
 }
 
+function formatTime(time: string | null) {
+  if (!time) return "Sem hora definida";
+  return time.slice(0, 5);
+}
+
+function isCompleted(status: string | null) {
+  return (status ?? "").toLowerCase() === "concluído";
+}
+
 function getEventColor(type: string) {
   const lower = type.toLowerCase();
 
-  if (lower.includes("vac")) return "#EC4899";
+  if (lower.includes("vac")) return "#10B981";
   if (lower.includes("consult")) return "#3B82F6";
   if (lower.includes("exam")) return "#8B5CF6";
-  if (lower.includes("medic")) return "#F59E0B";
+  if (lower.includes("medic")) return "#D97706";
 
   return "#0F9D92";
 }
@@ -95,12 +104,6 @@ function generateMonthWeeks(year: number, month: number) {
   return weeks;
 }
 
-function formatTime(time: string | null) {
-  if (!time) return "Sem hora definida";
-
-  return time.slice(0, 5);
-}
-
 export default function CalendarioScreen() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -116,6 +119,7 @@ export default function CalendarioScreen() {
   );
 
   const today = new Date();
+
   const selectedDay =
     today.getFullYear() === currentYear && today.getMonth() === currentMonth
       ? today.getDate()
@@ -174,9 +178,10 @@ export default function CalendarioScreen() {
             time: record.hora_registo ?? null,
             title: record.titulo,
             animalName,
-            type: record.tipo_registo,  
+            type: record.tipo_registo,
             location: record.local ?? "Sem local definido",
             color: getEventColor(record.tipo_registo),
+            estado: record.estado ?? null,
           };
         });
 
@@ -205,10 +210,14 @@ export default function CalendarioScreen() {
     setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
   };
 
+  const activeEvents = useMemo(() => {
+    return events.filter((event) => !isCompleted(event.estado));
+  }, [events]);
+
   const eventsByDay = useMemo(() => {
     const grouped: Record<number, CalendarEvent[]> = {};
 
-    events.forEach((event) => {
+    activeEvents.forEach((event) => {
       const date = new Date(event.date);
 
       if (
@@ -226,18 +235,16 @@ export default function CalendarioScreen() {
     });
 
     return grouped;
-  }, [events, currentYear, currentMonth]);
+  }, [activeEvents, currentYear, currentMonth]);
 
   const upcomingEvents = useMemo(() => {
     const todayKey = formatDateKey(new Date());
 
-    return events
+    return activeEvents
       .filter((event) => event.date >= todayKey)
-      .sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-      )
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 5);
-  }, [events]);
+  }, [activeEvents]);
 
   return (
     <View style={styles.screen}>
@@ -257,11 +264,6 @@ export default function CalendarioScreen() {
         <Text style={styles.pageSubtitle}>
           Acompanhe as próximas consultas, vacinações e medicações.
         </Text>
-
-        <Pressable style={styles.scheduleButton}>
-          <Feather name="calendar" size={18} color="#FFFFFF" />
-          <Text style={styles.scheduleButtonText}>Agendar Consulta</Text>
-        </Pressable>
 
         <View style={styles.calendarCard}>
           <View style={styles.calendarHeader}>
@@ -292,7 +294,7 @@ export default function CalendarioScreen() {
 
                 return (
                   <View
-                    key={"w-" + weekIndex + "-d-" + dayIndex}
+                    key={`w-${weekIndex}-d-${dayIndex}`}
                     style={styles.dayCell}
                   >
                     {day !== null ? (
@@ -352,7 +354,7 @@ export default function CalendarioScreen() {
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>Sem próximos eventos</Text>
               <Text style={styles.emptyText}>
-                Ainda não existem consultas, vacinas ou medicações futuras.
+                Não existem eventos futuros pendentes.
               </Text>
             </View>
           ) : (
@@ -416,25 +418,6 @@ const styles = StyleSheet.create({
     color: "#334155",
     marginBottom: 18,
     maxWidth: 280,
-  },
-
-  scheduleButton: {
-    height: 46,
-    alignSelf: "flex-start",
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: "#0F9D92",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-
-  scheduleButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-    marginLeft: 10,
   },
 
   calendarCard: {
@@ -512,7 +495,8 @@ const styles = StyleSheet.create({
   dayNumberCircle: {
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: 999,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -541,7 +525,7 @@ const styles = StyleSheet.create({
   eventDot: {
     width: 7,
     height: 7,
-    borderRadius: 3.5,
+    borderRadius: 999,
     marginHorizontal: 2,
   },
 
@@ -616,7 +600,7 @@ const styles = StyleSheet.create({
   eventDateDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 999,
     marginRight: 8,
   },
 

@@ -8,12 +8,22 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
+  DeviceEventEmitter,
 } from "react-native";
 import { useFonts, Pacifico_400Regular } from "@expo-google-fonts/pacifico";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { router } from "expo-router";
 import { supabase } from "../src/lib/supabase";
 
 const ACTIVE_GREEN = "#06afa1";
+
+const PUBLIC_ROUTES = [
+  "index",
+  "login",
+  "registar",
+  "esqueceu_password",
+  "reset_password",
+];
 
 function getInitials(name: string) {
   const trimmed = name.trim();
@@ -72,6 +82,21 @@ function MenuItem({
 function CustomDrawerContent(props: any) {
   const currentRoute = props.state.routes[props.state.index]?.name ?? "";
 
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.log("Erro ao terminar sessão:", error.message);
+        return;
+      }
+
+      router.replace("/");
+    } catch (error) {
+      console.log("Erro inesperado ao terminar sessão:", error);
+    }
+  };
+
   return (
     <DrawerContentScrollView
       {...props}
@@ -87,6 +112,7 @@ function CustomDrawerContent(props: any) {
               resizeMode="contain"
             />
           </View>
+
           <Text style={styles.appName}>PawLife</Text>
         </View>
 
@@ -193,29 +219,13 @@ function CustomDrawerContent(props: any) {
 
       <View>
         <View style={styles.separator} />
-        <Pressable
-            onPress={async () => {
-              try {
-                const { error } = await supabase.auth.signOut();
 
-                if (error) {
-                  console.log("Erro ao terminar sessão:", error.message);
-                  return;
-                }
+        <Pressable onPress={handleLogout} style={styles.footerItem}>
+          <View style={styles.itemContent}>
+            <View style={styles.iconWrap}>
+              <MaterialIcons name="logout" size={17} color="#64748B" />
+            </View>
 
-                props.navigation.reset({
-                  index: 0,
-                  routes: [{ name: "login" }],
-                });
-              } catch (error) {
-                console.log("Erro inesperado ao terminar sessão:", error);
-              }
-            }}
-            style={styles.footerItem}>
-            <View style={styles.itemContent}>
-              <View style={styles.iconWrap}>
-                <MaterialIcons name="logout" size={17} color="#64748B" />
-              </View>
             <Text style={styles.footerLabel}>Terminar Sessão</Text>
           </View>
         </Pressable>
@@ -232,85 +242,132 @@ export default function RootLayout() {
   const [fullName, setFullName] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [photoVersion, setPhotoVersion] = useState(Date.now());
 
-      useEffect(() => {
-      let profileChannel: ReturnType<typeof supabase.channel> | null = null;
+  const loadProfile = useCallback(async (showLoading = false) => {
+    try {
+      if (showLoading) setLoadingProfile(true);
 
-      const loadProfile = async () => {
-        try {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-          if (!user) {
-            setFullName("");
-            setProfilePhotoUrl(null);
-            return;
+      if (!user) {
+        setFullName("");
+        setProfilePhotoUrl(null);
+        setLoadingProfile(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("utilizadores")
+        .select("nome, foto_perfil_url")
+        .eq("id_utilizador", user.id)
+        .single();
+
+      if (error) {
+        console.log("Erro ao carregar perfil:", error.message);
+        setFullName("");
+        setProfilePhotoUrl(null);
+        return;
+      }
+
+      setFullName(data?.nome ?? "");
+      setProfilePhotoUrl(data?.foto_perfil_url ?? null);
+      setPhotoVersion(Date.now());
+    } catch (error) {
+      console.log("Erro inesperado ao carregar perfil:", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let profileChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setupRealtime = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      profileChannel = supabase
+        .channel(`utilizadores-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "utilizadores",
+            filter: `id_utilizador=eq.${user.id}`,
+          },
+          (payload) => {
+            const newRow = payload.new as {
+              nome?: string;
+              foto_perfil_url?: string | null;
+            };
+
+            setFullName(newRow.nome ?? "");
+            setProfilePhotoUrl(newRow.foto_perfil_url ?? null);
+            setPhotoVersion(Date.now());
+            setLoadingProfile(false);
           }
+        )
+        .subscribe();
+    };
 
-          const { data, error } = await supabase
-            .from("utilizadores")
-            .select("nome, foto_perfil_url")
-            .eq("id_utilizador", user.id)
-            .single();
+    const profileUpdateListener = DeviceEventEmitter.addListener(
+      "profileUpdated",
+      (data: { nome?: string; foto_perfil_url?: string | null }) => {
+        setFullName(data.nome ?? "");
+        setProfilePhotoUrl(data.foto_perfil_url ?? null);
+        setPhotoVersion(Date.now());
+        setLoadingProfile(false);
+      }
+    );
 
-          if (error) {
-            console.log("Erro ao carregar perfil:", error.message);
-            setFullName("");
-            setProfilePhotoUrl(null);
-            return;
-          }
+    loadProfile(true);
+    setupRealtime();
 
-          setFullName(data?.nome ?? "");
-          setProfilePhotoUrl(data?.foto_perfil_url ?? null);
-
-          if (!profileChannel) {
-            profileChannel = supabase
-              .channel(`utilizadores-${user.id}`)
-              .on(
-                "postgres_changes",
-                {
-                  event: "UPDATE",
-                  schema: "public",
-                  table: "utilizadores",
-                  filter: `id_utilizador=eq.${user.id}`,
-                },
-                (payload) => {
-                  const newRow = payload.new as {
-                    nome?: string;
-                    foto_perfil_url?: string | null;
-                  };
-
-                  setFullName(newRow.nome ?? "");
-                  setProfilePhotoUrl(newRow.foto_perfil_url ?? null);
-                }
-              )
-              .subscribe();
-          }
-        } catch (error) {
-          console.log("Erro inesperado ao carregar perfil:", error);
-        } finally {
+    const authSubscription = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!session) {
+          setFullName("");
+          setProfilePhotoUrl(null);
           setLoadingProfile(false);
+
+          if (profileChannel) {
+            supabase.removeChannel(profileChannel);
+            profileChannel = null;
+          }
+
+          router.replace("/");
+          return;
         }
-      };
 
-      loadProfile();
+        setTimeout(() => {
+          loadProfile(true);
+        }, 0);
+      }
+    );
 
-      const authSubscription = supabase.auth.onAuthStateChange(() => {
-        loadProfile();
-      });
+    return () => {
+      profileUpdateListener.remove();
+      authSubscription.data.subscription.unsubscribe();
 
-      return () => {
-        authSubscription.data.subscription.unsubscribe();
-
-        if (profileChannel) {
-          supabase.removeChannel(profileChannel);
-        }
-      };
-    }, []);
+      if (profileChannel) {
+        supabase.removeChannel(profileChannel);
+      }
+    };
+  }, [loadProfile]);
 
   const initials = useMemo(() => getInitials(fullName), [fullName]);
-  const resolvedPhoto = useMemo(() => getProfilePublicUrl(profilePhotoUrl), [profilePhotoUrl]);
+
+  const resolvedPhoto = useMemo(() => {
+    const url = getProfilePublicUrl(profilePhotoUrl);
+    return url ? `${url}?t=${photoVersion}` : null;
+  }, [profilePhotoUrl, photoVersion]);
 
   if (!fontsLoaded) {
     return null;
@@ -318,8 +375,26 @@ export default function RootLayout() {
 
   return (
     <Drawer
-      initialRouteName="login"
+      initialRouteName="index"
       drawerContent={(props) => <CustomDrawerContent {...props} />}
+      screenListeners={({ route }) => ({
+        focus: async () => {
+          if (PUBLIC_ROUTES.includes(route.name)) {
+            return;
+          }
+
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+
+          if (!session) {
+            setFullName("");
+            setProfilePhotoUrl(null);
+            setLoadingProfile(false);
+            router.replace("/");
+          }
+        },
+      })}
       screenOptions={({ navigation }) => ({
         headerShown: true,
         overlayColor: "rgba(0,0,0,0.25)",
@@ -341,7 +416,18 @@ export default function RootLayout() {
 
         headerLeft: () => (
           <Pressable
-            onPress={() => navigation.openDrawer()}
+            onPress={async () => {
+              const {
+                data: { session },
+              } = await supabase.auth.getSession();
+
+              if (!session) {
+                router.replace("/");
+                return;
+              }
+
+              navigation.openDrawer();
+            }}
             style={styles.headerLeftButton}
           >
             <MaterialIcons name="menu" size={22} color="#64748B" />
@@ -357,6 +443,7 @@ export default function RootLayout() {
                 resizeMode="contain"
               />
             </View>
+
             <Text style={styles.topBarAppName}>PawLife</Text>
           </View>
         ),
@@ -374,12 +461,24 @@ export default function RootLayout() {
 
             <Pressable
               style={styles.profileButton}
-              onPress={() => navigation.navigate("profile")}
+              onPress={async () => {
+                const {
+                  data: { session },
+                } = await supabase.auth.getSession();
+
+                if (!session) {
+                  router.replace("/");
+                  return;
+                }
+
+                navigation.navigate("profile");
+              }}
             >
               {loadingProfile ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : resolvedPhoto ? (
                 <Image
+                  key={resolvedPhoto}
                   source={{ uri: resolvedPhoto }}
                   style={styles.profileImage}
                   resizeMode="cover"
@@ -404,20 +503,28 @@ export default function RootLayout() {
       <Drawer.Screen name="calendario" options={{ title: "" }} />
 
       <Drawer.Screen
-        name="login"
-        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
-      />
-      <Drawer.Screen
-        name="register"
-        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
-      />
-      <Drawer.Screen
         name="index"
         options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
       />
+
       <Drawer.Screen
-        name="modal"
-        options={{ drawerItemStyle: { display: "none" } }}
+        name="login"
+        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+      />
+
+      <Drawer.Screen
+        name="registar"
+        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+      />
+
+      <Drawer.Screen
+        name="esqueceu_password"
+        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+      />
+
+      <Drawer.Screen
+        name="reset_password"
+        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
       />
     </Drawer>
   );
