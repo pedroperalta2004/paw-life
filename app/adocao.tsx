@@ -255,7 +255,10 @@ export default function AdoptionScreen() {
 
               <View style={styles.buttonsRow}>
                 <Pressable
-                  style={styles.callButton}
+                  style={({ pressed }) => [
+                    styles.callButton,
+                    pressed && styles.callButtonPressed,
+                  ]}
                   onPress={() => handleCall(item.telefone)}
                 >
                   <Ionicons
@@ -269,7 +272,10 @@ export default function AdoptionScreen() {
                 </Pressable>
 
                 <Pressable
-                  style={styles.emailButton}
+                  style={({ pressed }) => [
+                    styles.emailButton,
+                    pressed && styles.emailButtonPressed,
+                  ]}
                   onPress={() => handleEmail(item.email)}
                 >
                   <Ionicons
@@ -283,7 +289,10 @@ export default function AdoptionScreen() {
                 </Pressable>
 
                 <Pressable
-                  style={styles.websiteButton}
+                  style={({ pressed }) => [
+                    styles.websiteButton,
+                    pressed && styles.websiteButtonPressed,
+                  ]}
                   onPress={() => handleWebsite(item.website)}
                 >
                   <Ionicons
@@ -713,5 +722,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#0F172A",
     fontWeight: "600",
+  },
+
+  callButtonPressed: {
+    backgroundColor: "#15968b",
+    transform: [{ scale: 0.99 }],
+  },
+
+  emailButtonPressed: {
+    backgroundColor: "#edeeee",
+    transform: [{ scale: 0.99 }],
+  },
+
+  websiteButtonPressed: {
+    backgroundColor: "#354769",
+    transform: [{ scale: 0.99 }],
   },
 });

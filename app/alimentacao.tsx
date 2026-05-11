@@ -578,7 +578,12 @@ export default function FoodScreen() {
           Controle o stock de ração e receba alertas antes que acabe.
         </Text>
 
-        <Pressable style={styles.addButton} onPress={openCreateModal}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.addButton,
+            pressed && styles.greenButtonPressed,
+          ]}
+          onPress={openCreateModal}>
           <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={styles.addButtonText}>Novo Saco de Ração</Text>
         </Pressable>
@@ -732,10 +737,10 @@ export default function FoodScreen() {
                   )}
 
                   <View style={styles.actionRow}>
-                    <Pressable
-                      style={styles.feedButton}
-                      onPress={() => handleFeedPet(item)}
-                    >
+                    <Pressable style={({ pressed }) => [
+                      styles.feedButton,
+                      pressed && styles.greenButtonPressed,]}
+                      onPress={() => handleFeedPet(item)}>
                       <MaterialCommunityIcons
                         name="food-drumstick"
                         size={16}
@@ -745,22 +750,25 @@ export default function FoodScreen() {
                       <Text style={styles.feedButtonText}>Dar porção</Text>
                     </Pressable>
 
-                    <Pressable
-                      style={styles.iconButton}
+                    <Pressable style={({ pressed }) => [
+                      styles.iconButton,
+                      pressed && styles.iconButtonPressed,]}
                       onPress={() => openEditModal(item)}
                     >
                       <Feather name="edit-2" size={16} color="#0F9D92" />
                     </Pressable>
 
-                    <Pressable
-                      style={styles.deleteButton}
+                    <Pressable style={({ pressed }) => [
+                      styles.deleteButton,
+                      pressed && styles.deleteButtonPressed,]}
                       onPress={() => handleDeleteFood(item)}
                     >
                       <Feather name="trash-2" size={15} color="#DC2626" />
                     </Pressable>
 
-                    <Pressable
-                      style={styles.buyButton}
+                    <Pressable style={({ pressed }) => [
+                      styles.buyButton,
+                      pressed && styles.buyButtonPressed,]}
                       onPress={() => handleBuy(item.link_compra)}
                     >
                       <Feather name="shopping-cart" size={16} color="#FFFFFF" />
@@ -896,7 +904,10 @@ export default function FoodScreen() {
 
               <View style={styles.modalButtons}>
                 <Pressable
-                  style={styles.cancelButton}
+                   style={({ pressed }) => [
+                    styles.cancelButton,
+                    pressed && styles.whiteButtonPressed,
+                  ]}
                   onPress={() => {
                     setShowModal(false);
                     resetForm();
@@ -906,7 +917,10 @@ export default function FoodScreen() {
                 </Pressable>
 
                 <Pressable
-                  style={styles.saveButton}
+                   style={({ pressed }) => [
+                    styles.saveButton,
+                    pressed && styles.greenButtonPressed,
+                  ]}
                   onPress={handleSaveFood}
                   disabled={saving}
                 >
@@ -1408,5 +1422,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     color: "#FFFFFF",
+  },
+
+  greenButtonPressed: {
+    backgroundColor: "#15968b",
+    transform: [{ scale: 0.99 }],
+  },
+
+  whiteButtonPressed: {
+    backgroundColor: "#eff0f0",
+    transform: [{ scale: 0.99 }],
+  },
+
+  iconButtonPressed: {
+    backgroundColor: "#d3fae8",
+    transform: [{ scale: 0.99 }],
+  },
+
+  deleteButtonPressed: {
+    backgroundColor: "#fddbdb",
+    transform: [{ scale: 0.99 }],
+  },
+  
+  buyButtonPressed: {
+    backgroundColor: "#354769",
+    transform: [{ scale: 0.99 }],
   },
 });

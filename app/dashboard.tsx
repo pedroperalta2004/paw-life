@@ -453,7 +453,10 @@ export default function DashboardScreen() {
 
         <View style={styles.actionRow}>
           <Pressable
-            style={styles.secondaryAction}
+            style={({ pressed }) => [
+            styles.secondaryAction,
+            pressed && styles.whiteButtonPressed,
+          ]}
             onPress={() => router.push("/atividade")}
           >
             <Ionicons name="add" size={18} color="#0F172A" />
@@ -461,7 +464,10 @@ export default function DashboardScreen() {
           </Pressable>
 
           <Pressable
-            style={styles.primaryAction}
+            style={({ pressed }) => [
+              styles.primaryAction,
+              pressed && styles.greenButtonPressed,
+            ]}
             onPress={() => router.push("/saude")}
           >
             <Ionicons name="add" size={18} color="#FFFFFF" />
@@ -743,7 +749,10 @@ export default function DashboardScreen() {
               </View>
 
               <Pressable
-                style={styles.walkButton}
+                style={({ pressed }) => [
+                  styles.walkButton,
+                  pressed && styles.walkButtonPressed,
+                ]}
                 onPress={() => router.push("/atividade")}
               >
                 <Text style={styles.walkButtonText}>Ver</Text>
@@ -1198,4 +1207,19 @@ const styles = StyleSheet.create({
   iconPurpleLight: { backgroundColor: "#F3E8FF" },
   iconOrangeLight: { backgroundColor: "#FEF3C7" },
   iconGrayLight: { backgroundColor: "#F1F5F9" },
+
+  greenButtonPressed: {
+    backgroundColor: "#15968b",
+    transform: [{ scale: 0.99 }],
+  },
+
+  whiteButtonPressed: {
+    backgroundColor: "#f1f1f1",
+    transform: [{ scale: 0.99 }],
+  },
+
+  walkButtonPressed: {
+    backgroundColor: "#d3fae8",
+    transform: [{ scale: 0.99 }],
+  },
 });

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,21 +14,53 @@ import {
   Text,
   TextInput,
   View,
+  BackHandler,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as LocalAuthentication from "expo-local-authentication";
 import { supabase } from "../src/lib/supabase";
-import { BackHandler } from "react-native";
 import { useFocusEffect } from "expo-router";
+
+const REMEMBER_EMAIL_KEY = "pawlife_remember_email";
 
 export default function LoginScreen() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    loadRememberedEmail();
+    checkBiometricAvailability();
+  }, []);
+
+  const loadRememberedEmail = async () => {
+    const savedEmail = await AsyncStorage.getItem(REMEMBER_EMAIL_KEY);
+
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberEmail(true);
+    }
+  };
+
+  const checkBiometricAvailability = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    setBiometricAvailable(hasHardware && isEnrolled);
+  };
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail || !password.trim()) {
       Alert.alert("Campos em falta", "Preencha o email e a palavra-passe.");
       return;
     }
@@ -37,11 +69,17 @@ export default function LoginScreen() {
       setLoading(true);
 
       const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: cleanEmail,
         password,
       });
 
       if (error) throw error;
+
+      if (rememberEmail) {
+        await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, cleanEmail);
+      } else {
+        await AsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
+      }
 
       router.replace("/dashboard");
     } catch (error: any) {
@@ -51,6 +89,52 @@ export default function LoginScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      setBiometricLoading(true);
+
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware || !isEnrolled) {
+        Alert.alert(
+          "Biometria indisponível",
+          "Configure impressão digital ou Face ID no telemóvel."
+        );
+        return;
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Entrar no PawLife",
+        fallbackLabel: "Usar código",
+        cancelLabel: "Cancelar",
+      });
+
+      if (!result.success) return;
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        Alert.alert(
+          "Sessão expirada",
+          "Faça login novamente com email e palavra-passe."
+        );
+        return;
+      }
+
+      router.replace("/dashboard");
+    } catch (error: any) {
+      Alert.alert(
+        "Erro",
+        error.message || "Não foi possível iniciar sessão com biometria."
+      );
+    } finally {
+      setBiometricLoading(false);
     }
   };
 
@@ -64,7 +148,7 @@ export default function LoginScreen() {
       return () => backHandler.remove();
     }, [])
   );
-  
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
@@ -113,6 +197,7 @@ export default function LoginScreen() {
                     autoCapitalize="none"
                     value={email}
                     onChangeText={setEmail}
+                    editable={!loading}
                   />
                 </View>
               </View>
@@ -142,11 +227,13 @@ export default function LoginScreen() {
                     secureTextEntry={!showPassword}
                     value={password}
                     onChangeText={setPassword}
+                    editable={!loading}
                   />
 
                   <Pressable
                     onPress={() => setShowPassword((prev) => !prev)}
                     hitSlop={10}
+                    disabled={loading}
                   >
                     <Ionicons
                       name={showPassword ? "eye-off-outline" : "eye-outline"}
@@ -158,9 +245,28 @@ export default function LoginScreen() {
               </View>
 
               <Pressable
+                style={styles.rememberRow}
+                onPress={() => setRememberEmail((prev) => !prev)}
+                disabled={loading}
+              >
+                <View
+                  style={[
+                    styles.checkbox,
+                    rememberEmail && styles.checkboxActive,
+                  ]}
+                >
+                  {rememberEmail && (
+                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                  )}
+                </View>
+
+                <Text style={styles.rememberText}>Lembrar email</Text>
+              </Pressable>
+
+              <Pressable
                 style={[styles.loginButton, loading && styles.buttonDisabled]}
                 onPress={handleLogin}
-                disabled={loading}
+                disabled={loading || biometricLoading}
               >
                 {loading ? (
                   <ActivityIndicator color="#FFFFFF" />
@@ -168,6 +274,32 @@ export default function LoginScreen() {
                   <Text style={styles.loginButtonText}>Entrar</Text>
                 )}
               </Pressable>
+
+              {biometricAvailable && (
+                <Pressable
+                  style={[
+                    styles.biometricButton,
+                    biometricLoading && styles.buttonDisabled,
+                  ]}
+                  onPress={handleBiometricLogin}
+                  disabled={loading || biometricLoading}
+                >
+                  {biometricLoading ? (
+                    <ActivityIndicator color="#0F9D92" />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="finger-print-outline"
+                        size={22}
+                        color="#0F9D92"
+                      />
+                      <Text style={styles.biometricButtonText}>
+                        Entrar com biometria
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
             </View>
 
             <View style={styles.footer}>
@@ -308,8 +440,38 @@ const styles = StyleSheet.create({
     color: "#0F172A",
   },
 
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: -2,
+    marginBottom: 16,
+  },
+
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+
+  checkboxActive: {
+    backgroundColor: "#0F9D92",
+    borderColor: "#0F9D92",
+  },
+
+  rememberText: {
+    fontSize: 13,
+    color: "#475569",
+    fontWeight: "600",
+  },
+
   loginButton: {
-    marginTop: 12,
+    marginTop: 4,
     height: 48,
     borderRadius: 12,
     backgroundColor: "#0F9D92",
@@ -320,6 +482,25 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+
+  biometricButton: {
+    marginTop: 12,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#BCE7DF",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  biometricButtonText: {
+    color: "#0F9D92",
+    fontSize: 14,
+    fontWeight: "800",
   },
 
   buttonDisabled: {

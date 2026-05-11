@@ -725,7 +725,10 @@ export default function SaudeScreen() {
 
         <View style={styles.topButtonsRow}>
           <Pressable
-            style={styles.filterButton}
+             style={({ pressed }) => [
+              styles.filterButton,
+              pressed && styles.whiteButtonPressed,
+            ]}
             onPress={() =>
               setSortOrder((prev) => (prev === "recent" ? "oldest" : "recent"))
             }
@@ -734,7 +737,7 @@ export default function SaudeScreen() {
             <Text style={styles.filterButtonText}>Filtrar</Text>
           </Pressable>
 
-          <Pressable style={styles.newRecordButton} onPress={handleOpenCreate}>
+          <Pressable style={({ pressed }) => [styles.newRecordButton, pressed && styles.ButtonPressed,]} onPress={handleOpenCreate}>
             <Ionicons name="add" size={20} color="#FFFFFF" />
             <Text style={styles.newRecordButtonText}>Novo Registo</Text>
           </Pressable>
@@ -782,7 +785,10 @@ export default function SaudeScreen() {
             </View>
 
             <Pressable
-              style={styles.sortButton}
+               style={({ pressed }) => [
+                styles.sortButton,
+                pressed && styles.whiteButtonPressed,
+              ]}
               onPress={() =>
                 setSortOrder((prev) =>
                   prev === "recent" ? "oldest" : "recent",
@@ -1120,7 +1126,10 @@ export default function SaudeScreen() {
 
               <View style={styles.modalButtons}>
                 <Pressable
-                  style={styles.cancelButton}
+                  style={({ pressed }) => [
+                    styles.cancelButton,
+                    pressed && styles.whiteButtonPressed,
+                  ]}
                   onPress={() => {
                     setShowCreateModal(false);
                     resetForm();
@@ -1130,14 +1139,17 @@ export default function SaudeScreen() {
                 </Pressable>
 
                 <Pressable
-                  style={styles.saveButton}
+                    style={({ pressed }) => [
+                    styles.saveButton,
+                    pressed && styles.ButtonPressed,
+                  ]}
                   onPress={handleSaveRecord}
                   disabled={saving}
                 >
                   {saving ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.saveButtonText}>
+                    <Text style={styles.saveButtonText} > 
                       {editingRecord ? "Guardar Alterações" : "Guardar"}
                     </Text>
                   )}
@@ -1719,5 +1731,15 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 999,
     marginBottom: 8,
+  },
+
+  ButtonPressed: {
+    backgroundColor: "#15968b",
+    transform: [{ scale: 0.99 }],
+  },
+
+   whiteButtonPressed: {
+    backgroundColor: "#eff0f0",
+    transform: [{ scale: 0.99 }],
   },
 });

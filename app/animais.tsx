@@ -877,7 +877,10 @@ export default function PetsScreen() {
 
         <View style={styles.quickButtonsRow}>
           <Pressable
-            style={styles.quickHistoryButton}
+            style={({ pressed }) => [
+            styles.quickHistoryButton,
+            pressed && styles.quickHistoryButtonPressed,
+          ]}
             onPress={() => openWeightHistoryModal(animal)}
           >
             <Feather name="bar-chart-2" size={15} color="#334155" />
@@ -885,7 +888,10 @@ export default function PetsScreen() {
           </Pressable>
 
           <Pressable
-            style={styles.quickWeightButton}
+            style={({ pressed }) => [
+              styles.quickWeightButton,
+              pressed && styles.quickWeightButtonPressed,
+            ]}
             onPress={() => openWeightModal(animal)}
           >
             <Ionicons name="add-circle-outline" size={17} color="#0F9D92" />
@@ -915,7 +921,10 @@ export default function PetsScreen() {
           Faça a gestão dos perfis e informações básicas dos seus animais.
         </Text>
 
-        <Pressable style={styles.registerButton} onPress={openCreateModal}>
+        <Pressable style={({ pressed }) => [
+            styles.registerButton,
+            pressed && styles.greenButtonPressed,
+          ]} onPress={openCreateModal}>
           <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={styles.registerButtonText}>Registar Novo Animal</Text>
         </Pressable>
@@ -1119,7 +1128,10 @@ export default function PetsScreen() {
               <View style={styles.modalButtons}>
                 {editingAnimal ? (
                   <Pressable
-                    style={styles.modalDeleteButton}
+                     style={({ pressed }) => [
+                    styles.modalDeleteButton,
+                    pressed && styles.modalDeleteButtonPressed,
+                  ]}
                     onPress={() => handleDeleteAnimal(editingAnimal)}
                     disabled={savingAnimal}
                   >
@@ -1128,7 +1140,10 @@ export default function PetsScreen() {
                 ) : null}
 
                 <Pressable
-                  style={styles.cancelButton}
+                  style={({ pressed }) => [
+                    styles.cancelButton,
+                    pressed && styles.whiteButtonPressed,
+                  ]}
                   onPress={() => {
                     setShowRegisterModal(false);
                     resetForm();
@@ -1139,7 +1154,10 @@ export default function PetsScreen() {
                 </Pressable>
 
                 <Pressable
-                  style={styles.saveButton}
+                  style={({ pressed }) => [
+                    styles.saveButton,
+                    pressed && styles.greenButtonPressed,
+                  ]}
                   onPress={handleSave}
                   disabled={savingAnimal}
                 >
@@ -1192,7 +1210,10 @@ export default function PetsScreen() {
 
             <View style={styles.modalButtons}>
               <Pressable
-                style={styles.cancelButton}
+                style={({ pressed }) => [
+                styles.cancelButton,
+                pressed && styles.whiteButtonPressed,
+              ]}
                 onPress={() => {
                   setShowWeightModal(false);
                   setSelectedWeightAnimal(null);
@@ -1204,7 +1225,10 @@ export default function PetsScreen() {
               </Pressable>
 
               <Pressable
-                style={styles.saveButton}
+                style={({ pressed }) => [
+                  styles.saveButton,
+                  pressed && styles.greenButtonPressed,
+                ]}
                 onPress={handleSaveWeight}
                 disabled={savingWeight}
               >
@@ -1940,5 +1964,30 @@ const styles = StyleSheet.create({
   datePlaceholder: {
     fontSize: 14,
     color: "#94A3B8",
+  },
+
+  greenButtonPressed: {
+    backgroundColor: "#15968b",
+    transform: [{ scale: 0.99 }],
+  },
+
+  whiteButtonPressed: {
+    backgroundColor: "#f1f1f1",
+    transform: [{ scale: 0.99 }],
+  },
+
+  modalDeleteButtonPressed: {
+    backgroundColor: "#fddbdb",
+    transform: [{ scale: 0.99 }],
+  },
+
+  quickHistoryButtonPressed: {
+    backgroundColor: "#f0f0f0",
+    transform: [{ scale: 0.99 }],
+  },
+
+  quickWeightButtonPressed: {
+    backgroundColor: "#dafdff",
+    transform: [{ scale: 0.99 }],
   },
 });
