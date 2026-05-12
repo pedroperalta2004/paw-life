@@ -8,8 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Image,
 } from "react-native";
-import { Ionicons, Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { supabase } from "../src/lib/supabase";
@@ -17,6 +18,7 @@ import { supabase } from "../src/lib/supabase";
 type Animal = {
   id_animal: string;
   nome: string;
+  fotografia_url: string | null;
 };
 
 type RoutePoint = {
@@ -60,7 +62,6 @@ function calculateDistanceKm(pointA: RoutePoint, pointB: RoutePoint) {
 
 function formatDuration(minutes: number | null) {
   if (!minutes) return "0 min";
-
   if (minutes < 60) return `${minutes} min`;
 
   const hours = Math.floor(minutes / 60);
@@ -91,6 +92,7 @@ export default function AtividadeScreen() {
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [selectedAnimalId, setSelectedAnimalId] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -128,7 +130,7 @@ export default function AtividadeScreen() {
 
       const { data: animalsData, error: animalsError } = await supabase
         .from("animais")
-        .select("id_animal, nome")
+        .select("id_animal, nome, fotografia_url")
         .eq("id_utilizador", user.id)
         .order("nome", { ascending: true });
 
@@ -268,10 +270,6 @@ export default function AtividadeScreen() {
       if (userError) throw userError;
       if (!user) throw new Error("Utilizador não autenticado.");
 
-      const selectedAnimal = animals.find(
-        (animal) => animal.id_animal === selectedAnimalId
-      );
-
       const { data, error } = await supabase
         .from("atividades")
         .insert([
@@ -312,17 +310,52 @@ export default function AtividadeScreen() {
     }
   };
 
+  const handleDeleteActivity = async (activityId: string) => {
+    Alert.alert(
+      "Eliminar passeio",
+      "Tem a certeza que pretende eliminar esta atividade?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from("atividades")
+                .delete()
+                .eq("id_atividade", activityId);
+
+              if (error) throw error;
+
+              setActivities((prev) =>
+                prev.filter((item) => item.id_atividade !== activityId)
+              );
+
+              Alert.alert("Sucesso", "Atividade eliminada com sucesso.");
+            } catch (error: any) {
+              Alert.alert(
+                "Erro",
+                error.message || "Não foi possível eliminar a atividade."
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const getAnimalName = (id: string) => {
     return animals.find((animal) => animal.id_animal === id)?.nome ?? "--";
   };
 
   const getActivityTitle = (activity: Activity) => {
-  if (activity.tipo.toLowerCase().includes("passeio")) {
-    return `Passeio de ${getAnimalName(activity.id_animal)}`;
-  }
+    if (activity.tipo.toLowerCase().includes("passeio")) {
+      return `Passeio de ${getAnimalName(activity.id_animal)}`;
+    }
 
-  return activity.titulo;
-};
+    return activity.titulo;
+  };
 
   const totalMinutes = useMemo(() => {
     return activities.reduce((sum, item) => sum + (item.duracao_min ?? 0), 0);
@@ -382,32 +415,45 @@ export default function AtividadeScreen() {
         </Text>
 
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.animalsScroll}
-        >
-          {animals.map((animal) => (
-            <Pressable
-              key={animal.id_animal}
-              style={[
-                styles.animalChip,
-                selectedAnimalId === animal.id_animal && styles.animalChipActive,
-              ]}
-              onPress={() => setSelectedAnimalId(animal.id_animal)}
-              disabled={isTracking}
-            >
-              <Text
-                style={[
-                  styles.animalChipText,
-                  selectedAnimalId === animal.id_animal &&
-                    styles.animalChipTextActive,
-                ]}
-              >
-                {animal.nome}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={styles.animalsScroll}
+>
+  {animals.map((animal) => (
+    <Pressable
+      key={animal.id_animal}
+      style={styles.animalAvatarWrapper}
+      onPress={() => setSelectedAnimalId(animal.id_animal)}
+    >
+      <View
+        style={[
+          styles.animalAvatar,
+          selectedAnimalId === animal.id_animal && styles.animalAvatarActive,
+        ]}
+      >
+        {animal.fotografia_url ? (
+          <Image
+            source={{ uri: animal.fotografia_url }}
+            style={styles.animalAvatarImage}
+          />
+        ) : (
+          <Ionicons name="paw-outline" size={24} color="#64748B" />
+        )}
+      </View>
+
+      <Text
+        style={[
+          styles.animalAvatarName,
+          selectedAnimalId === animal.id_animal &&
+            styles.animalAvatarNameActive,
+        ]}
+        numberOfLines={1}
+      >
+        {animal.nome}
+      </Text>
+    </Pressable>
+  ))}
+</ScrollView>
 
         <View style={styles.actionRow}>
           <View style={styles.syncBox}>
@@ -546,7 +592,9 @@ export default function AtividadeScreen() {
               <Text style={styles.mapSmallLabel}>
                 ÚLTIMA ROTA ({getAnimalName(latestActivity.id_animal)})
               </Text>
-              <Text style={styles.mapTitle}>{getActivityTitle(latestActivity)}</Text>
+              <Text style={styles.mapTitle}>
+                {getActivityTitle(latestActivity)}
+              </Text>
 
               <View style={styles.mapStatsRow}>
                 <View>
@@ -601,7 +649,6 @@ export default function AtividadeScreen() {
 
         <View style={styles.historyHeader}>
           <Text style={styles.historyTitle}>Histórico de Movimento</Text>
-          <Text style={styles.seeAllText}>Ver todos</Text>
         </View>
 
         {loading ? (
@@ -625,13 +672,25 @@ export default function AtividadeScreen() {
 
               <View style={styles.activityContent}>
                 <View style={styles.activityTopRow}>
-                  <Text style={styles.activityTitle}>{getActivityTitle(activity)}</Text>
+                  <Text style={styles.activityTitle}>
+                    {getActivityTitle(activity)}
+                  </Text>
 
-                  <View style={styles.petBadge}>
-                    <Text style={styles.petBadgeText}>
-                      {getAnimalName(activity.id_animal)}
-                    </Text>
-                  </View>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.deleteButton,
+                      pressed && styles.deleteButtonPressed,
+                    ]}
+                    onPress={() => handleDeleteActivity(activity.id_atividade)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                  </Pressable>
+                </View>
+
+                <View style={styles.petBadge}>
+                  <Text style={styles.petBadgeText}>
+                    {getAnimalName(activity.id_animal)}
+                  </Text>
                 </View>
 
                 <View style={styles.metaRow}>
@@ -674,67 +733,61 @@ export default function AtividadeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-  },
-
-  container: {
-    padding: 18,
-    paddingBottom: 40,
-  },
-
+  screen: { flex: 1, backgroundColor: "#F3F4F6" },
+  container: { padding: 18, paddingBottom: 40 },
   pageTitle: {
     fontSize: 24,
     fontWeight: "800",
     color: "#0F172A",
     marginBottom: 6,
   },
-
   pageSubtitle: {
     fontSize: 14,
     color: "#64748B",
     lineHeight: 22,
     marginBottom: 18,
   },
-
-  animalsScroll: {
-    marginBottom: 14,
-  },
-
-  animalChip: {
-    height: 38,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
+  animalsScroll: { marginBottom: 16 },
+  animalAvatarWrapper: {
     alignItems: "center",
-    marginRight: 10,
+    marginRight: 14,
+    width: 74,
   },
-
-  animalChipActive: {
-    backgroundColor: "#DBF5F1",
+  animalAvatar: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  animalAvatarActive: {
     borderColor: "#0F9D92",
+    backgroundColor: "#DBF5F1",
   },
-
-  animalChipText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#475569",
+  animalAvatarImage: {
+    width: "100%",
+    height: "100%",
   },
-
-  animalChipTextActive: {
+  animalAvatarName: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  animalAvatarNameActive: {
     color: "#0F9D92",
+    fontWeight: "800",
   },
-
   actionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
   },
-
   syncBox: {
     width: "42%",
     height: 54,
@@ -747,13 +800,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-
   syncText: {
     fontSize: 13,
     fontWeight: "700",
     color: "#0F9D92",
   },
-
   mainButton: {
     width: "54%",
     height: 54,
@@ -764,21 +815,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-
-  stopButton: {
-    backgroundColor: "#E11D48",
-  },
-
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-
+  stopButton: { backgroundColor: "#E11D48" },
+  buttonDisabled: { opacity: 0.7 },
   mainButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
   },
-
   trackingCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
@@ -787,21 +830,18 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 22,
   },
-
   trackingTitle: {
     fontSize: 18,
     fontWeight: "800",
     color: "#0F172A",
     marginBottom: 12,
   },
-
   liveMap: {
     width: "100%",
     height: 210,
     borderRadius: 16,
     marginBottom: 14,
   },
-
   waitingGpsBox: {
     height: 210,
     borderRadius: 16,
@@ -812,19 +852,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 14,
   },
-
   waitingGpsText: {
     marginTop: 10,
     fontSize: 13,
     color: "#64748B",
     fontWeight: "600",
   },
-
   trackingStatsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-
   trackingStat: {
     width: "31%",
     backgroundColor: "#F8FAFC",
@@ -832,19 +869,16 @@ const styles = StyleSheet.create({
     padding: 12,
     alignItems: "center",
   },
-
   trackingLabel: {
     fontSize: 11,
     color: "#64748B",
     marginBottom: 6,
   },
-
   trackingValue: {
     fontSize: 15,
     fontWeight: "800",
     color: "#0F172A",
   },
-
   mapCard: {
     height: 230,
     borderRadius: 18,
@@ -854,12 +888,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     backgroundColor: "#FFFFFF",
   },
-
-  map: {
-    width: "100%",
-    height: "100%",
-  },
-
+  map: { width: "100%", height: "100%" },
   mapPreviewOverlay: {
     position: "absolute",
     top: 16,
@@ -875,7 +904,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-
   eventDateDot: {
     width: 7,
     height: 7,
@@ -883,50 +911,39 @@ const styles = StyleSheet.create({
     backgroundColor: "#F43F5E",
     marginBottom: 8,
   },
-
   mapSmallLabel: {
     fontSize: 11,
     fontWeight: "800",
     color: "#64748B",
     marginBottom: 8,
   },
-
   mapTitle: {
     fontSize: 14,
     fontWeight: "800",
     color: "#0F172A",
     marginBottom: 12,
   },
-
   mapStatsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-
-  mapStatLabel: {
-    fontSize: 11,
-    color: "#64748B",
-  },
-
+  mapStatLabel: { fontSize: 11, color: "#64748B" },
   mapStatValue: {
     fontSize: 14,
     fontWeight: "800",
     color: "#0F172A",
   },
-
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 14,
   },
-
   sectionTitle: {
     marginLeft: 8,
     fontSize: 17,
     fontWeight: "800",
     color: "#0F172A",
   },
-
   statsCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
@@ -935,24 +952,17 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 24,
   },
-
   statsTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
-  statsLabel: {
-    fontSize: 13,
-    color: "#64748B",
-  },
-
+  statsLabel: { fontSize: 13, color: "#64748B" },
   statsMainValue: {
     fontSize: 20,
     fontWeight: "800",
     color: "#0F172A",
   },
-
   progressTrack: {
     height: 7,
     borderRadius: 999,
@@ -961,13 +971,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     overflow: "hidden",
   },
-
   progressFill: {
     width: "75%",
     height: "100%",
     backgroundColor: "#0F9D92",
   },
-
   statsBottomRow: {
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
@@ -975,45 +983,33 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
   },
-
   smallMetricLabel: {
     fontSize: 12,
     color: "#64748B",
     marginBottom: 6,
     textAlign: "center",
   },
-
   smallMetricValue: {
     fontSize: 17,
     fontWeight: "800",
     color: "#0F172A",
     textAlign: "center",
   },
-
   historyHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 14,
   },
-
   historyTitle: {
     fontSize: 17,
     fontWeight: "800",
     color: "#0F172A",
   },
-
-  seeAllText: {
-    fontSize: 13,
-    color: "#0F9D92",
-    fontWeight: "700",
-  },
-
   loadingWrapper: {
     paddingVertical: 40,
     alignItems: "center",
   },
-
   emptyCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
@@ -1022,7 +1018,6 @@ const styles = StyleSheet.create({
     padding: 26,
     alignItems: "center",
   },
-
   emptyTitle: {
     fontSize: 18,
     fontWeight: "800",
@@ -1030,14 +1025,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 8,
   },
-
   emptyText: {
     fontSize: 14,
     color: "#64748B",
     textAlign: "center",
     lineHeight: 22,
   },
-
   activityCard: {
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
@@ -1047,7 +1040,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 14,
   },
-
   activityIconBox: {
     width: 56,
     height: 56,
@@ -1057,18 +1049,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 14,
   },
-
-  activityContent: {
-    flex: 1,
-  },
-
+  activityContent: { flex: 1 },
   activityTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 8,
   },
-
   activityTitle: {
     flex: 1,
     fontSize: 16,
@@ -1076,34 +1063,45 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     marginRight: 8,
   },
-
+  deleteButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteButtonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.97 }],
+  },
   petBadge: {
+    alignSelf: "flex-start",
     backgroundColor: "#EFF6FF",
     borderWidth: 1,
     borderColor: "#BFDBFE",
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    marginBottom: 8,
   },
-
   petBadgeText: {
     fontSize: 11,
     color: "#2563EB",
     fontWeight: "700",
   },
-
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 6,
   },
-
   metaText: {
     marginLeft: 6,
     fontSize: 12,
     color: "#64748B",
   },
-
   activityMetrics: {
     marginTop: 10,
     backgroundColor: "#F8FAFC",
@@ -1112,7 +1110,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
   },
-
   metricLabel: {
     fontSize: 11,
     color: "#64748B",
@@ -1120,11 +1117,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 4,
   },
-
   metricValue: {
     fontSize: 14,
     color: "#0F172A",
     fontWeight: "800",
     textAlign: "center",
   },
+
 });

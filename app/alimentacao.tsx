@@ -755,7 +755,7 @@ export default function FoodScreen() {
                       pressed && styles.iconButtonPressed,]}
                       onPress={() => openEditModal(item)}
                     >
-                      <Feather name="edit-2" size={16} color="#0F9D92" />
+                      <Feather name="edit-2" size={16} color="#475569" />
                     </Pressable>
 
                     <Pressable style={({ pressed }) => [
@@ -1227,9 +1227,9 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 12,
-    backgroundColor: "#ECFDF5",
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#BCE7DF",
+    borderColor: "#CBD5E1",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1435,7 +1435,7 @@ const styles = StyleSheet.create({
   },
 
   iconButtonPressed: {
-    backgroundColor: "#d3fae8",
+    backgroundColor: "#f3f4f4",
     transform: [{ scale: 0.99 }],
   },
 

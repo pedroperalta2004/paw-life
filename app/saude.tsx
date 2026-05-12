@@ -671,57 +671,45 @@ export default function SaudeScreen() {
         </Pressable>
 
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.animalsScroll}
-        >
-          {animals.map((animal) => (
-            <Pressable
-              key={animal.id_animal}
-              style={[
-                styles.animalCardChip,
-                selectedAnimalId === animal.id_animal &&
-                  styles.animalCardChipActive,
-              ]}
-              onPress={() => setSelectedAnimalId(animal.id_animal)}
-            >
-              {animal.fotografia_url ? (
-                <Image
-                  source={{ uri: animal.fotografia_url }}
-                  style={styles.animalChipImage}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.animalIconCircle,
-                    selectedAnimalId === animal.id_animal &&
-                      styles.animalIconCircleActive,
-                  ]}
-                >
-                  <Ionicons
-                    name="paw-outline"
-                    size={22}
-                    color={
-                      selectedAnimalId === animal.id_animal
-                        ? "#0F9D92"
-                        : "#64748B"
-                    }
-                  />
-                </View>
-              )}
+  horizontal
+  showsHorizontalScrollIndicator={false}
+  style={styles.animalsScroll}
+>
+  {animals.map((animal) => (
+    <Pressable
+      key={animal.id_animal}
+      style={styles.animalAvatarWrapper}
+      onPress={() => setSelectedAnimalId(animal.id_animal)}
+    >
+      <View
+        style={[
+          styles.animalAvatar,
+          selectedAnimalId === animal.id_animal && styles.animalAvatarActive,
+        ]}
+      >
+        {animal.fotografia_url ? (
+          <Image
+            source={{ uri: animal.fotografia_url }}
+            style={styles.animalAvatarImage}
+          />
+        ) : (
+          <Ionicons name="paw-outline" size={24} color="#64748B" />
+        )}
+      </View>
 
-              <Text
-                style={[
-                  styles.animalCardText,
-                  selectedAnimalId === animal.id_animal &&
-                    styles.animalCardTextActive,
-                ]}
-              >
-                {animal.nome}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+      <Text
+        style={[
+          styles.animalAvatarName,
+          selectedAnimalId === animal.id_animal &&
+            styles.animalAvatarNameActive,
+        ]}
+        numberOfLines={1}
+      >
+        {animal.nome}
+      </Text>
+    </Pressable>
+  ))}
+</ScrollView>
 
         <View style={styles.topButtonsRow}>
           <Pressable
@@ -881,7 +869,10 @@ export default function SaudeScreen() {
 
                     <View style={styles.cardActionRow}>
                       <Pressable
-                        style={styles.detailsButton}
+                        style={({ pressed }) => [
+                          styles.detailsButton,
+                          pressed && styles.whiteButtonPressed,
+                        ]}
                         onPress={() => {
                           setSelectedRecord(record);
                           setShowDetailsModal(true);
@@ -893,7 +884,10 @@ export default function SaudeScreen() {
                       </Pressable>
 
                       <Pressable
-                        style={styles.editSmallButton}
+                        style={({ pressed }) => [
+                          styles.editSmallButton,
+                          pressed && styles.editButtonPressed,
+                        ]}
                         onPress={() => handleOpenEdit(record)}
                       >
                         <Feather name="edit-2" size={15} color="#475569" />
@@ -901,7 +895,10 @@ export default function SaudeScreen() {
 
                       {!isDone && (
                         <Pressable
-                          style={styles.completeSmallButton}
+                        style={({ pressed }) => [
+                          styles.completeSmallButton,
+                          pressed && styles.completeButtonPressed,
+                        ]}
                           onPress={() => handleCompleteRecord(record)}
                         >
                           <Feather name="check" size={17} color="#0F9D92" />
@@ -909,7 +906,10 @@ export default function SaudeScreen() {
                       )}
 
                       <Pressable
-                        style={styles.deleteSmallButton}
+                        style={({ pressed }) => [
+                          styles.deleteSmallButton,
+                          pressed && styles.deleteButtonPressed,
+                        ]}
                         onPress={() => handleDeleteRecord(record)}
                       >
                         <Feather name="trash-2" size={15} color="#DC2626" />
@@ -1213,14 +1213,20 @@ export default function SaudeScreen() {
 
                 <View style={styles.detailActionsRow}>
                   <Pressable
-                    style={styles.detailEditButton}
+                    style={({ pressed }) => [
+                          styles.detailEditButton,
+                          pressed && styles.editButtonPressed,
+                        ]}
                     onPress={() => handleOpenEdit(selectedRecord)}
                   >
                     <Text style={styles.detailEditButtonText}>Editar</Text>
                   </Pressable>
 
                   <Pressable
-                    style={styles.detailStatusButton}
+                    style={({ pressed }) => [
+                          styles.detailStatusButton,
+                          pressed && styles.completeButtonPressed,
+                        ]}
                     onPress={() => handleToggleStatus(selectedRecord)}
                   >
                     <Text style={styles.detailStatusButtonText}>
@@ -1232,7 +1238,10 @@ export default function SaudeScreen() {
                 </View>
 
                 <Pressable
-                  style={styles.detailDeleteButton}
+                  style={({ pressed }) => [
+                          styles.detailDeleteButton,
+                          pressed && styles.deleteButtonPressed,
+                        ]}
                   onPress={() => handleDeleteRecord(selectedRecord)}
                 >
                   <Text style={styles.detailDeleteButtonText}>
@@ -1742,4 +1751,60 @@ const styles = StyleSheet.create({
     backgroundColor: "#eff0f0",
     transform: [{ scale: 0.99 }],
   },
+
+   editButtonPressed: {
+    backgroundColor: "#f3f4f4",
+    transform: [{ scale: 0.99 }],
+  },
+
+  deleteButtonPressed: {
+    backgroundColor: "#fddbdb",
+    transform: [{ scale: 0.99 }],
+  },
+
+  completeButtonPressed: {
+    backgroundColor: "#d3fae8",
+    transform: [{ scale: 0.99 }],
+  },
+
+  animalAvatarWrapper: {
+  alignItems: "center",
+  marginRight: 14,
+  width: 74,
+},
+
+animalAvatar: {
+  width: 62,
+  height: 62,
+  borderRadius: 31,
+  backgroundColor: "#FFFFFF",
+  borderWidth: 2,
+  borderColor: "#E2E8F0",
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+},
+
+animalAvatarActive: {
+  borderColor: "#0F9D92",
+  backgroundColor: "#DBF5F1",
+},
+
+animalAvatarImage: {
+  width: "100%",
+  height: "100%",
+},
+
+animalAvatarName: {
+  marginTop: 6,
+  fontSize: 12,
+  color: "#64748B",
+  fontWeight: "600",
+  textAlign: "center",
+},
+
+animalAvatarNameActive: {
+  color: "#0F9D92",
+  fontWeight: "800",
+},
 });
