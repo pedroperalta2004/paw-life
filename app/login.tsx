@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import React, { useState, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
@@ -19,7 +19,6 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as LocalAuthentication from "expo-local-authentication";
 import { supabase } from "../src/lib/supabase";
-import { useFocusEffect } from "expo-router";
 
 const REMEMBER_EMAIL_KEY = "pawlife_remember_email";
 
@@ -85,7 +84,7 @@ export default function LoginScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro no login",
-        error.message || "Não foi possível iniciar sessão."
+        error.message || "Não foi possível iniciar sessão.",
       );
     } finally {
       setLoading(false);
@@ -102,7 +101,7 @@ export default function LoginScreen() {
       if (!hasHardware || !isEnrolled) {
         Alert.alert(
           "Biometria indisponível",
-          "Configure impressão digital ou Face ID no telemóvel."
+          "Configure impressão digital ou Face ID no telemóvel.",
         );
         return;
       }
@@ -122,7 +121,7 @@ export default function LoginScreen() {
       if (!session) {
         Alert.alert(
           "Sessão expirada",
-          "Faça login novamente com email e palavra-passe."
+          "Faça login novamente com email e palavra-passe.",
         );
         return;
       }
@@ -131,7 +130,7 @@ export default function LoginScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível iniciar sessão com biometria."
+        error.message || "Não foi possível iniciar sessão com biometria.",
       );
     } finally {
       setBiometricLoading(false);
@@ -142,11 +141,11 @@ export default function LoginScreen() {
     useCallback(() => {
       const backHandler = BackHandler.addEventListener(
         "hardwareBackPress",
-        () => true
+        () => true,
       );
 
       return () => backHandler.remove();
-    }, [])
+    }, []),
   );
 
   return (

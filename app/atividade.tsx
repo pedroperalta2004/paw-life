@@ -50,10 +50,7 @@ function calculateDistanceKm(pointA: RoutePoint, pointB: RoutePoint) {
 
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) *
-      Math.cos(lat2) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
@@ -104,7 +101,7 @@ export default function AtividadeScreen() {
 
   const startTimeRef = useRef<Date | null>(null);
   const locationSubscriptionRef = useRef<Location.LocationSubscription | null>(
-    null
+    null,
   );
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -153,7 +150,7 @@ export default function AtividadeScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível carregar as atividades."
+        error.message || "Não foi possível carregar as atividades.",
       );
     } finally {
       setLoading(false);
@@ -190,7 +187,7 @@ export default function AtividadeScreen() {
       if (!permission.granted) {
         Alert.alert(
           "Permissão necessária",
-          "É necessário permitir acesso à localização."
+          "É necessário permitir acesso à localização.",
         );
         return;
       }
@@ -231,14 +228,14 @@ export default function AtividadeScreen() {
 
             return [...prev, point];
           });
-        }
+        },
       );
 
       locationSubscriptionRef.current = subscription;
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível iniciar o passeio."
+        error.message || "Não foi possível iniciar o passeio.",
       );
       setIsTracking(false);
       stopLocationWatchOnly();
@@ -259,7 +256,7 @@ export default function AtividadeScreen() {
 
       const durationMin = Math.max(
         1,
-        Math.round((endTime.getTime() - startTime.getTime()) / 60000)
+        Math.round((endTime.getTime() - startTime.getTime()) / 60000),
       );
 
       const {
@@ -303,7 +300,7 @@ export default function AtividadeScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível guardar o passeio."
+        error.message || "Não foi possível guardar o passeio.",
       );
     } finally {
       setSaving(false);
@@ -329,19 +326,19 @@ export default function AtividadeScreen() {
               if (error) throw error;
 
               setActivities((prev) =>
-                prev.filter((item) => item.id_atividade !== activityId)
+                prev.filter((item) => item.id_atividade !== activityId),
               );
 
               Alert.alert("Sucesso", "Atividade eliminada com sucesso.");
             } catch (error: any) {
               Alert.alert(
                 "Erro",
-                error.message || "Não foi possível eliminar a atividade."
+                error.message || "Não foi possível eliminar a atividade.",
               );
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -364,7 +361,7 @@ export default function AtividadeScreen() {
   const totalDistance = useMemo(() => {
     return activities.reduce(
       (sum, item) => sum + Number(item.distancia_km ?? 0),
-      0
+      0,
     );
   }, [activities]);
 
@@ -375,7 +372,7 @@ export default function AtividadeScreen() {
       : `${elapsedMinutes} min ${elapsedSeconds % 60}s`;
 
   const latestActivity = activities.find(
-    (activity) => activity.rota && activity.rota.length > 0
+    (activity) => activity.rota && activity.rota.length > 0,
   );
 
   const latestRoute = latestActivity?.rota ?? [];
@@ -415,45 +412,46 @@ export default function AtividadeScreen() {
         </Text>
 
         <ScrollView
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  style={styles.animalsScroll}
->
-  {animals.map((animal) => (
-    <Pressable
-      key={animal.id_animal}
-      style={styles.animalAvatarWrapper}
-      onPress={() => setSelectedAnimalId(animal.id_animal)}
-    >
-      <View
-        style={[
-          styles.animalAvatar,
-          selectedAnimalId === animal.id_animal && styles.animalAvatarActive,
-        ]}
-      >
-        {animal.fotografia_url ? (
-          <Image
-            source={{ uri: animal.fotografia_url }}
-            style={styles.animalAvatarImage}
-          />
-        ) : (
-          <Ionicons name="paw-outline" size={24} color="#64748B" />
-        )}
-      </View>
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.animalsScroll}
+        >
+          {animals.map((animal) => (
+            <Pressable
+              key={animal.id_animal}
+              style={styles.animalAvatarWrapper}
+              onPress={() => setSelectedAnimalId(animal.id_animal)}
+            >
+              <View
+                style={[
+                  styles.animalAvatar,
+                  selectedAnimalId === animal.id_animal &&
+                    styles.animalAvatarActive,
+                ]}
+              >
+                {animal.fotografia_url ? (
+                  <Image
+                    source={{ uri: animal.fotografia_url }}
+                    style={styles.animalAvatarImage}
+                  />
+                ) : (
+                  <Ionicons name="paw-outline" size={24} color="#64748B" />
+                )}
+              </View>
 
-      <Text
-        style={[
-          styles.animalAvatarName,
-          selectedAnimalId === animal.id_animal &&
-            styles.animalAvatarNameActive,
-        ]}
-        numberOfLines={1}
-      >
-        {animal.nome}
-      </Text>
-    </Pressable>
-  ))}
-</ScrollView>
+              <Text
+                style={[
+                  styles.animalAvatarName,
+                  selectedAnimalId === animal.id_animal &&
+                    styles.animalAvatarNameActive,
+                ]}
+                numberOfLines={1}
+              >
+                {animal.nome}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
         <View style={styles.actionRow}>
           <View style={styles.syncBox}>
@@ -531,7 +529,9 @@ export default function AtividadeScreen() {
             ) : (
               <View style={styles.waitingGpsBox}>
                 <ActivityIndicator color="#0F9D92" />
-                <Text style={styles.waitingGpsText}>A obter localização...</Text>
+                <Text style={styles.waitingGpsText}>
+                  A obter localização...
+                </Text>
               </View>
             )}
 
@@ -627,11 +627,6 @@ export default function AtividadeScreen() {
               {formatDuration(totalMinutes)}
             </Text>
           </View>
-
-          <View style={styles.progressTrack}>
-            <View style={styles.progressFill} />
-          </View>
-
           <View style={styles.statsBottomRow}>
             <View>
               <Text style={styles.smallMetricLabel}>Atividades</Text>
@@ -707,6 +702,51 @@ export default function AtividadeScreen() {
                     {activity.local || "Local não definido"}
                   </Text>
                 </View>
+
+                {activity.rota && activity.rota.length > 0 && (
+                  <View style={styles.historyMapBox}>
+                    <MapView
+                      style={styles.historyMap}
+                      initialRegion={{
+                        latitude: activity.rota[0].latitude,
+                        longitude: activity.rota[0].longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                      scrollEnabled={true}
+                      zoomEnabled={true}
+                      rotateEnabled={true}
+                      pitchEnabled={true}
+                    >
+                      <Polyline
+                        coordinates={activity.rota.map((point) => ({
+                          latitude: point.latitude,
+                          longitude: point.longitude,
+                        }))}
+                        strokeWidth={4}
+                        strokeColor="#0F9D92"
+                      />
+
+                      <Marker
+                        coordinate={{
+                          latitude: activity.rota[0].latitude,
+                          longitude: activity.rota[0].longitude,
+                        }}
+                        title="Início"
+                      />
+
+                      <Marker
+                        coordinate={{
+                          latitude:
+                            activity.rota[activity.rota.length - 1].latitude,
+                          longitude:
+                            activity.rota[activity.rota.length - 1].longitude,
+                        }}
+                        title="Fim"
+                      />
+                    </MapView>
+                  </View>
+                )}
 
                 <View style={styles.activityMetrics}>
                   <View>
@@ -963,23 +1003,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#0F172A",
   },
-  progressTrack: {
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: "#E2E8F0",
-    marginTop: 12,
-    marginBottom: 20,
-    overflow: "hidden",
-  },
-  progressFill: {
-    width: "75%",
-    height: "100%",
-    backgroundColor: "#0F9D92",
-  },
+
   statsBottomRow: {
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
-    paddingTop: 18,
+    paddingTop: 14,
+    marginTop: 14,
     flexDirection: "row",
     justifyContent: "space-around",
   },
@@ -1124,4 +1153,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  historyMapBox: {
+    height: 150,
+    borderRadius: 14,
+    overflow: "hidden",
+    marginTop: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F8FAFC",
+  },
+
+  historyMap: {
+    width: "100%",
+    height: "100%",
+  },
 });

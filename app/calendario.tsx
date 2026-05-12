@@ -115,7 +115,7 @@ export default function CalendarioScreen() {
 
   const weeks = useMemo(
     () => generateMonthWeeks(currentYear, currentMonth),
-    [currentYear, currentMonth]
+    [currentYear, currentMonth],
   );
 
   const today = new Date();
@@ -189,7 +189,7 @@ export default function CalendarioScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível carregar o calendário."
+        error.message || "Não foi possível carregar o calendário.",
       );
     } finally {
       setLoading(false);
@@ -267,7 +267,9 @@ export default function CalendarioScreen() {
 
         <View style={styles.calendarCard}>
           <View style={styles.calendarHeader}>
-            <Text style={styles.calendarTitle}>{getMonthTitle(currentDate)}</Text>
+            <Text style={styles.calendarTitle}>
+              {getMonthTitle(currentDate)}
+            </Text>
 
             <View style={styles.monthNavigation}>
               <Pressable onPress={goToPreviousMonth} style={styles.arrowButton}>
@@ -290,7 +292,7 @@ export default function CalendarioScreen() {
             {weeks.map((week, weekIndex) =>
               week.map((day, dayIndex) => {
                 const isSelected = day === selectedDay;
-                const dayEvents = day ? eventsByDay[day] ?? [] : [];
+                const dayEvents = day ? (eventsByDay[day] ?? []) : [];
 
                 return (
                   <View
@@ -338,7 +340,7 @@ export default function CalendarioScreen() {
                     ) : null}
                   </View>
                 );
-              })
+              }),
             )}
           </View>
         </View>
@@ -378,7 +380,9 @@ export default function CalendarioScreen() {
 
                 <View style={styles.eventInfoRow}>
                   <Ionicons name="time-outline" size={16} color="#64748B" />
-                  <Text style={styles.eventInfoText}>{formatTime(event.time)}</Text>
+                  <Text style={styles.eventInfoText}>
+                    {formatTime(event.time)}
+                  </Text>
                 </View>
 
                 <View style={styles.eventInfoRow}>

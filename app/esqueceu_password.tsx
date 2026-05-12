@@ -43,7 +43,7 @@ export default function ForgotPasswordScreen() {
                 params: { email: cleanEmail },
               }),
           },
-        ]
+        ],
       );
     } catch (error: any) {
       Alert.alert("Erro", error.message || "Não foi possível enviar o email.");
@@ -56,11 +56,11 @@ export default function ForgotPasswordScreen() {
     useCallback(() => {
       const backHandler = BackHandler.addEventListener(
         "hardwareBackPress",
-        () => true
+        () => true,
       );
 
       return () => backHandler.remove();
-    }, [])
+    }, []),
   );
 
   return (

@@ -18,8 +18,8 @@ function withTimeout<T>(promise: Promise<T>, ms = 12000): Promise<T> {
     new Promise<T>((_, reject) =>
       setTimeout(
         () => reject(new Error("Tempo limite excedido. Tente novamente.")),
-        ms
-      )
+        ms,
+      ),
     ),
   ]);
 }
@@ -55,7 +55,7 @@ export default function ResetPasswordScreen() {
           email: cleanEmail,
           token: cleanCode,
           type: "recovery",
-        })
+        }),
       );
 
       if (error) throw error;
@@ -85,7 +85,7 @@ export default function ResetPasswordScreen() {
       const { error } = await withTimeout(
         supabase.auth.updateUser({
           password,
-        })
+        }),
       );
 
       if (error) throw error;
@@ -101,7 +101,7 @@ export default function ResetPasswordScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível alterar a palavra-passe."
+        error.message || "Não foi possível alterar a palavra-passe.",
       );
     } finally {
       setLoading(false);
@@ -204,9 +204,7 @@ export default function ResetPasswordScreen() {
                 disabled={loading}
               >
                 <Ionicons
-                  name={
-                    showConfirmPassword ? "eye-off-outline" : "eye-outline"
-                  }
+                  name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
                   size={20}
                   color="#64748B"
                 />

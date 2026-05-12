@@ -102,10 +102,7 @@ function calculateAge(birthDate: string | null) {
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
 
-  if (
-    monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < birth.getDate())
-  ) {
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
     age--;
   }
 
@@ -120,7 +117,7 @@ export default function PetsScreen() {
   const [petImage, setPetImage] = useState<string | null>(null);
 
   const [petName, setPetName] = useState("");
-  const [species, setSpecies] = useState("Cão");
+  const [species, setSpecies] = useState("");
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [showBirthDatePicker, setShowBirthDatePicker] = useState(false);
@@ -224,7 +221,7 @@ export default function PetsScreen() {
     setEditingAnimal(null);
     setPetImage(null);
     setPetName("");
-    setSpecies("Cão");
+    setSpecies("");
     setBreed("");
     setBirthDate("");
     setSex("");
@@ -770,7 +767,9 @@ export default function PetsScreen() {
           </View>
 
           <View style={styles.weightHistoryMiddle}>
-            <Text style={styles.weightHistoryValue}>{formatWeight(record.peso)}</Text>
+            <Text style={styles.weightHistoryValue}>
+              {formatWeight(record.peso)}
+            </Text>
             {isCurrent ? (
               <View style={styles.currentBadge}>
                 <Text style={styles.currentBadgeText}>Atual</Text>
@@ -779,7 +778,9 @@ export default function PetsScreen() {
           </View>
 
           <View style={styles.weightHistoryVariationBox}>
-            <Text style={[styles.weightHistoryVariation, { color: variationColor }]}>
+            <Text
+              style={[styles.weightHistoryVariation, { color: variationColor }]}
+            >
               {variationText}
             </Text>
             <Ionicons name={variationIcon} size={16} color={variationColor} />
@@ -878,9 +879,9 @@ export default function PetsScreen() {
         <View style={styles.quickButtonsRow}>
           <Pressable
             style={({ pressed }) => [
-            styles.quickHistoryButton,
-            pressed && styles.quickHistoryButtonPressed,
-          ]}
+              styles.quickHistoryButton,
+              pressed && styles.quickHistoryButtonPressed,
+            ]}
             onPress={() => openWeightHistoryModal(animal)}
           >
             <Feather name="bar-chart-2" size={15} color="#334155" />
@@ -921,10 +922,13 @@ export default function PetsScreen() {
           Faça a gestão dos perfis e informações básicas dos seus animais.
         </Text>
 
-        <Pressable style={({ pressed }) => [
+        <Pressable
+          style={({ pressed }) => [
             styles.registerButton,
             pressed && styles.greenButtonPressed,
-          ]} onPress={openCreateModal}>
+          ]}
+          onPress={openCreateModal}
+        >
           <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={styles.registerButtonText}>Registar Novo Animal</Text>
         </Pressable>
@@ -944,7 +948,10 @@ export default function PetsScreen() {
             </Text>
 
             <Pressable
-              style={styles.emptyStateButton}
+              style={({ pressed }) => [
+                styles.emptyStateButton,
+                pressed && styles.greenButtonPressed,
+              ]}
               onPress={openCreateModal}
             >
               <Text style={styles.emptyStateButtonText}>
@@ -1036,12 +1043,16 @@ export default function PetsScreen() {
               </View>
 
               <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>Data de nascimento aproximada</Text>
+                <Text style={styles.fieldLabel}>
+                  Data de nascimento aproximada
+                </Text>
                 <Pressable
                   style={styles.dateInput}
                   onPress={() => setShowBirthDatePicker(true)}
                 >
-                  <Text style={birthDate ? styles.dateText : styles.datePlaceholder}>
+                  <Text
+                    style={birthDate ? styles.dateText : styles.datePlaceholder}
+                  >
                     {birthDate || "Selecionar data"}
                   </Text>
 
@@ -1128,10 +1139,10 @@ export default function PetsScreen() {
               <View style={styles.modalButtons}>
                 {editingAnimal ? (
                   <Pressable
-                     style={({ pressed }) => [
-                    styles.modalDeleteButton,
-                    pressed && styles.modalDeleteButtonPressed,
-                  ]}
+                    style={({ pressed }) => [
+                      styles.modalDeleteButton,
+                      pressed && styles.modalDeleteButtonPressed,
+                    ]}
                     onPress={() => handleDeleteAnimal(editingAnimal)}
                     disabled={savingAnimal}
                   >
@@ -1211,9 +1222,9 @@ export default function PetsScreen() {
             <View style={styles.modalButtons}>
               <Pressable
                 style={({ pressed }) => [
-                styles.cancelButton,
-                pressed && styles.whiteButtonPressed,
-              ]}
+                  styles.cancelButton,
+                  pressed && styles.whiteButtonPressed,
+                ]}
                 onPress={() => {
                   setShowWeightModal(false);
                   setSelectedWeightAnimal(null);

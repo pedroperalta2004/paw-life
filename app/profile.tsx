@@ -113,7 +113,7 @@ export default function ProfileScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível carregar o perfil."
+        error.message || "Não foi possível carregar o perfil.",
       );
     } finally {
       setLoading(false);
@@ -141,7 +141,9 @@ export default function ProfileScreen() {
       }
     }
 
-    const { error } = await supabase.storage.from(BUCKET_NAME).remove([finalPath]);
+    const { error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .remove([finalPath]);
 
     if (error) {
       console.log("Erro ao remover foto antiga:", error.message);
@@ -170,8 +172,8 @@ export default function ProfileScreen() {
       fileExt === "png"
         ? "image/png"
         : fileExt === "webp"
-        ? "image/webp"
-        : "image/jpeg";
+          ? "image/webp"
+          : "image/jpeg";
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
@@ -213,7 +215,9 @@ export default function ProfileScreen() {
       if (error) throw error;
 
       if (!updatedUser) {
-        throw new Error("Não foi possível atualizar a fotografia do utilizador.");
+        throw new Error(
+          "Não foi possível atualizar a fotografia do utilizador.",
+        );
       }
 
       setPhotoPath(uploadedPath);
@@ -231,7 +235,7 @@ export default function ProfileScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível atualizar a foto."
+        error.message || "Não foi possível atualizar a foto.",
       );
     } finally {
       setUploadingPhoto(false);
@@ -244,7 +248,7 @@ export default function ProfileScreen() {
     if (!permission.granted) {
       Alert.alert(
         "Permissão necessária",
-        "É necessário permitir acesso à galeria."
+        "É necessário permitir acesso à galeria.",
       );
       return;
     }
@@ -267,7 +271,7 @@ export default function ProfileScreen() {
     if (!permission.granted) {
       Alert.alert(
         "Permissão necessária",
-        "É necessário permitir acesso à câmara."
+        "É necessário permitir acesso à câmara.",
       );
       return;
     }
@@ -426,13 +430,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#0F172A",
     marginBottom: 14,
-  },
-
-  subtitle: {
-    fontSize: 14,
-    color: "#64748B",
-    textAlign: "center",
-    marginBottom: 24,
   },
 
   card: {

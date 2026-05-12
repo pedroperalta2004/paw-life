@@ -1,4 +1,10 @@
-import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
+import {
+  Ionicons,
+  MaterialIcons,
+  MaterialCommunityIcons,
+  Feather,
+  Octicons,
+} from "@expo/vector-icons";
 import { Drawer } from "expo-router/drawer";
 import { DrawerContentScrollView } from "@react-navigation/drawer";
 import {
@@ -9,6 +15,8 @@ import {
   Image,
   ActivityIndicator,
   DeviceEventEmitter,
+  Modal,
+  ScrollView,
 } from "react-native";
 import { useFonts, Pacifico_400Regular } from "@expo-google-fonts/pacifico";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -24,6 +32,15 @@ const PUBLIC_ROUTES = [
   "esqueceu_password",
   "reset_password",
 ];
+
+type AlertItem = {
+  id: string;
+  title: string;
+  description: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  backgroundColor: string;
+};
 
 function getInitials(name: string) {
   const trimmed = name.trim();
@@ -47,6 +64,39 @@ function getProfilePublicUrl(path: string | null) {
 
   const { data } = supabase.storage.from("profile-images").getPublicUrl(path);
   return data.publicUrl;
+}
+
+function getEstimatedDays(stockKg: number, dailyPortionGrams: number) {
+  if (!dailyPortionGrams || dailyPortionGrams <= 0) return 0;
+  return Math.floor((stockKg * 1000) / dailyPortionGrams);
+}
+
+function formatRelativeDays(dateString: string | null) {
+  if (!dateString) return "--";
+
+  const today = new Date();
+  const target = new Date(dateString);
+
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+
+  const diffMs = target.getTime() - today.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays > 0) return `Faltam ${diffDays} dias`;
+  if (diffDays === 0) return "Hoje";
+  return `Atrasado há ${Math.abs(diffDays)} dias`;
+}
+
+function getEventLabel(type: string) {
+  const lower = type.toLowerCase();
+
+  if (lower.includes("vac")) return "Vacina próxima";
+  if (lower.includes("consult")) return "Consulta próxima";
+  if (lower.includes("exam")) return "Exame próximo";
+  if (lower.includes("medic")) return "Medicação próxima";
+
+  return "Evento próximo";
 }
 
 function MenuItem({
@@ -124,8 +174,8 @@ function CustomDrawerContent(props: any) {
           currentRoute={currentRoute}
           onPress={() => props.navigation.navigate("dashboard")}
           icon={
-            <Feather
-              name="grid"
+            <Octicons
+              name="apps"
               size={17}
               color={currentRoute === "dashboard" ? ACTIVE_GREEN : "#64748B"}
             />
@@ -147,13 +197,13 @@ function CustomDrawerContent(props: any) {
         />
 
         <MenuItem
-          label="Saúde"
+          label="Registos de Saúde"
           route="saude"
           currentRoute={currentRoute}
           onPress={() => props.navigation.navigate("saude")}
           icon={
-            <Ionicons
-              name="heart-outline"
+            <MaterialCommunityIcons
+              name="heart-plus-outline"
               size={17}
               color={currentRoute === "saude" ? ACTIVE_GREEN : "#64748B"}
             />
@@ -189,13 +239,13 @@ function CustomDrawerContent(props: any) {
         />
 
         <MenuItem
-          label="Alimentação"
+          label="Stock de Alimentação"
           route="alimentacao"
           currentRoute={currentRoute}
           onPress={() => props.navigation.navigate("alimentacao")}
           icon={
             <Feather
-              name="box"
+              name="package"
               size={17}
               color={currentRoute === "alimentacao" ? ACTIVE_GREEN : "#64748B"}
             />
@@ -203,13 +253,13 @@ function CustomDrawerContent(props: any) {
         />
 
         <MenuItem
-          label={"Associações de \nAdoção"}
+          label="Associações de Adoção"
           route="adocao"
           currentRoute={currentRoute}
           onPress={() => props.navigation.navigate("adocao")}
           icon={
-            <Ionicons
-              name="heart-outline"
+            <MaterialCommunityIcons
+              name="handshake-outline"
               size={17}
               color={currentRoute === "adocao" ? ACTIVE_GREEN : "#64748B"}
             />
@@ -243,6 +293,10 @@ export default function RootLayout() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [photoVersion, setPhotoVersion] = useState(Date.now());
+
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [importantAlerts, setImportantAlerts] = useState<AlertItem[]>([]);
+  const [loadingAlerts, setLoadingAlerts] = useState(false);
 
   const loadProfile = useCallback(async (showLoading = false) => {
     try {
@@ -282,6 +336,114 @@ export default function RootLayout() {
     }
   }, []);
 
+  const loadImportantAlerts = useCallback(async () => {
+    try {
+      setLoadingAlerts(true);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setImportantAlerts([]);
+        return;
+      }
+
+      const { data: animalsData } = await supabase
+        .from("animais")
+        .select("id_animal, nome")
+        .eq("id_utilizador", user.id);
+
+      const animals = animalsData ?? [];
+      const animalIds = animals.map((animal) => animal.id_animal);
+
+      if (animalIds.length === 0) {
+        setImportantAlerts([]);
+        return;
+      }
+
+      const getAnimalName = (id: string) => {
+        return (
+          animals.find((animal) => animal.id_animal === id)?.nome ?? "Animal"
+        );
+      };
+
+      const todayKey = new Date().toISOString().split("T")[0];
+
+      const alerts: AlertItem[] = [];
+
+      const { data: foodData } = await supabase
+        .from("alimentacao")
+        .select(
+          "id_alimentacao, id_animal, nome_racao, stock_atual, porcao_diaria",
+        )
+        .in("id_animal", animalIds);
+
+      (foodData ?? []).forEach((food: any) => {
+        const days = getEstimatedDays(
+          Number(food.stock_atual),
+          Number(food.porcao_diaria),
+        );
+
+        if (days <= 7) {
+          alerts.push({
+            id: `food-${food.id_alimentacao}`,
+            title: "Stock crítico",
+            description: `${food.nome_racao} de ${getAnimalName(
+              food.id_animal,
+            )} deve acabar em aproximadamente ${days} dias.`,
+            icon: "restaurant-outline",
+            color: "#B45309",
+            backgroundColor: "#FEF3C7",
+          });
+        }
+      });
+
+      const { data: healthData } = await supabase
+        .from("registos_saude")
+        .select(
+          "id_registo_saude, id_animal, tipo_registo, titulo, proxima_data, estado",
+        )
+        .in("id_animal", animalIds)
+        .not("proxima_data", "is", null)
+        .neq("estado", "Concluído")
+        .order("proxima_data", { ascending: true });
+
+      (healthData ?? []).forEach((record: any) => {
+        if (String(record.proxima_data) >= todayKey) {
+          alerts.push({
+            id: `health-${record.id_registo_saude}`,
+            title: getEventLabel(record.tipo_registo),
+            description: `${record.titulo} de ${getAnimalName(
+              record.id_animal,
+            )} — ${formatRelativeDays(record.proxima_data)}.`,
+            icon: "calendar-outline",
+            color: "#0F9D92",
+            backgroundColor: "#DBF5F1",
+          });
+        } else {
+          alerts.push({
+            id: `overdue-${record.id_registo_saude}`,
+            title: "Registo em atraso",
+            description: `${record.titulo} de ${getAnimalName(
+              record.id_animal,
+            )} está ${formatRelativeDays(record.proxima_data).toLowerCase()}.`,
+            icon: "alert-circle-outline",
+            color: "#DC2626",
+            backgroundColor: "#FEF2F2",
+          });
+        }
+      });
+
+      setImportantAlerts(alerts);
+    } catch (error) {
+      console.log("Erro ao carregar avisos:", error);
+      setImportantAlerts([]);
+    } finally {
+      setLoadingAlerts(false);
+    }
+  }, []);
+
   useEffect(() => {
     let profileChannel: ReturnType<typeof supabase.channel> | null = null;
 
@@ -312,7 +474,7 @@ export default function RootLayout() {
             setProfilePhotoUrl(newRow.foto_perfil_url ?? null);
             setPhotoVersion(Date.now());
             setLoadingProfile(false);
-          }
+          },
         )
         .subscribe();
     };
@@ -324,10 +486,11 @@ export default function RootLayout() {
         setProfilePhotoUrl(data.foto_perfil_url ?? null);
         setPhotoVersion(Date.now());
         setLoadingProfile(false);
-      }
+      },
     );
 
     loadProfile(true);
+    loadImportantAlerts();
     setupRealtime();
 
     const authSubscription = supabase.auth.onAuthStateChange(
@@ -335,6 +498,7 @@ export default function RootLayout() {
         if (!session) {
           setFullName("");
           setProfilePhotoUrl(null);
+          setImportantAlerts([]);
           setLoadingProfile(false);
 
           if (profileChannel) {
@@ -348,8 +512,9 @@ export default function RootLayout() {
 
         setTimeout(() => {
           loadProfile(true);
+          loadImportantAlerts();
         }, 0);
-      }
+      },
     );
 
     return () => {
@@ -360,7 +525,7 @@ export default function RootLayout() {
         supabase.removeChannel(profileChannel);
       }
     };
-  }, [loadProfile]);
+  }, [loadProfile, loadImportantAlerts]);
 
   const initials = useMemo(() => getInitials(fullName), [fullName]);
 
@@ -369,98 +534,60 @@ export default function RootLayout() {
     return url ? `${url}?t=${photoVersion}` : null;
   }, [profilePhotoUrl, photoVersion]);
 
+  const hasImportantAlerts = importantAlerts.length > 0;
+
   if (!fontsLoaded) {
     return null;
   }
 
   return (
-    <Drawer
-      initialRouteName="index"
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
-      screenListeners={({ route }) => ({
-        focus: async () => {
-          if (PUBLIC_ROUTES.includes(route.name)) {
-            return;
-          }
+    <>
+      <Drawer
+        initialRouteName="index"
+        drawerContent={(props) => <CustomDrawerContent {...props} />}
+        screenListeners={({ route }) => ({
+          focus: async () => {
+            if (PUBLIC_ROUTES.includes(route.name)) {
+              return;
+            }
 
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
 
-          if (!session) {
-            setFullName("");
-            setProfilePhotoUrl(null);
-            setLoadingProfile(false);
-            router.replace("/");
-          }
-        },
-      })}
-      screenOptions={({ navigation }) => ({
-        headerShown: true,
-        overlayColor: "rgba(0,0,0,0.25)",
-        drawerStyle: {
-          width: 270,
-          borderTopRightRadius: 28,
-          borderBottomRightRadius: 28,
-          backgroundColor: "#FFFFFF",
-        },
-        sceneStyle: {
-          backgroundColor: "#F8FAFC",
-        },
-        headerStyle: {
-          backgroundColor: "#FFFFFF",
-          borderBottomWidth: 1,
-          borderBottomColor: "#E5E7EB",
-        },
-        headerShadowVisible: false,
+            if (!session) {
+              setFullName("");
+              setProfilePhotoUrl(null);
+              setImportantAlerts([]);
+              setLoadingProfile(false);
+              router.replace("/");
+              return;
+            }
 
-        headerLeft: () => (
-          <Pressable
-            onPress={async () => {
-              const {
-                data: { session },
-              } = await supabase.auth.getSession();
+            await loadImportantAlerts();
+          },
+        })}
+        screenOptions={({ navigation }) => ({
+          headerShown: true,
+          overlayColor: "rgba(0,0,0,0.25)",
+          drawerStyle: {
+            width: 270,
+            borderTopRightRadius: 28,
+            borderBottomRightRadius: 28,
+            backgroundColor: "#FFFFFF",
+          },
+          sceneStyle: {
+            backgroundColor: "#F8FAFC",
+          },
+          headerStyle: {
+            backgroundColor: "#FFFFFF",
+            borderBottomWidth: 1,
+            borderBottomColor: "#E5E7EB",
+          },
+          headerShadowVisible: false,
 
-              if (!session) {
-                router.replace("/");
-                return;
-              }
-
-              navigation.openDrawer();
-            }}
-            style={styles.headerLeftButton}
-          >
-            <MaterialIcons name="menu" size={22} color="#64748B" />
-          </Pressable>
-        ),
-
-        headerTitle: () => (
-          <View style={styles.topBarBrand}>
-            <View style={styles.topBarLogoBox}>
-              <Image
-                source={require("../assets/images/pawlife_logo.png")}
-                style={styles.topBarLogoImage}
-                resizeMode="contain"
-              />
-            </View>
-
-            <Text style={styles.topBarAppName}>PawLife</Text>
-          </View>
-        ),
-
-        headerRight: () => (
-          <View style={styles.headerRightWrap}>
-            <Pressable style={styles.notificationButton}>
-              <Ionicons
-                name="notifications-outline"
-                size={20}
-                color="#64748B"
-              />
-              <View style={styles.notificationDot} />
-            </Pressable>
-
+          headerLeft: () => (
             <Pressable
-              style={styles.profileButton}
               onPress={async () => {
                 const {
                   data: { session },
@@ -471,62 +598,202 @@ export default function RootLayout() {
                   return;
                 }
 
-                navigation.navigate("profile");
+                navigation.openDrawer();
+              }}
+              style={styles.headerLeftButton}
+            >
+              <MaterialIcons name="menu" size={22} color="#64748B" />
+            </Pressable>
+          ),
+
+          headerTitle: () => (
+            <View style={styles.topBarBrand}>
+              <View style={styles.topBarLogoBox}>
+                <Image
+                  source={require("../assets/images/pawlife_logo.png")}
+                  style={styles.topBarLogoImage}
+                  resizeMode="contain"
+                />
+              </View>
+
+              <Text style={styles.topBarAppName}>PawLife</Text>
+            </View>
+          ),
+
+          headerRight: () => (
+            <View style={styles.headerRightWrap}>
+              <Pressable
+                style={styles.notificationButton}
+                onPress={async () => {
+                  await loadImportantAlerts();
+                  setShowAlertsModal(true);
+                }}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={20}
+                  color="#64748B"
+                />
+
+                {hasImportantAlerts && <View style={styles.notificationDot} />}
+              </Pressable>
+
+              <Pressable
+                style={styles.profileButton}
+                onPress={async () => {
+                  const {
+                    data: { session },
+                  } = await supabase.auth.getSession();
+
+                  if (!session) {
+                    router.replace("/");
+                    return;
+                  }
+
+                  navigation.navigate("profile");
+                }}
+              >
+                {loadingProfile ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : resolvedPhoto ? (
+                  <Image
+                    key={resolvedPhoto}
+                    source={{ uri: resolvedPhoto }}
+                    style={styles.profileImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.profileInitials}>{initials}</Text>
+                )}
+              </Pressable>
+            </View>
+          ),
+
+          drawerType: "front",
+        })}
+      >
+        <Drawer.Screen name="dashboard" options={{ title: "" }} />
+        <Drawer.Screen name="animais" options={{ title: "" }} />
+        <Drawer.Screen name="alimentacao" options={{ title: "" }} />
+        <Drawer.Screen name="atividade" options={{ title: "" }} />
+        <Drawer.Screen name="adocao" options={{ title: "" }} />
+        <Drawer.Screen name="profile" options={{ title: "" }} />
+        <Drawer.Screen name="saude" options={{ title: "" }} />
+        <Drawer.Screen name="calendario" options={{ title: "" }} />
+
+        <Drawer.Screen
+          name="index"
+          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        />
+
+        <Drawer.Screen
+          name="login"
+          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        />
+
+        <Drawer.Screen
+          name="registar"
+          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        />
+
+        <Drawer.Screen
+          name="esqueceu_password"
+          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        />
+
+        <Drawer.Screen
+          name="reset_password"
+          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        />
+      </Drawer>
+
+      <Modal visible={showAlertsModal} animationType="fade" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertsModalCard}>
+            <View style={styles.alertsModalHeader}>
+              <View>
+                <Text style={styles.alertsModalTitle}>Avisos Importantes</Text>
+                <Text style={styles.alertsModalSubtitle}>
+                  Resumo dos alertas atuais dos seus animais.
+                </Text>
+              </View>
+
+              <Pressable
+                style={styles.closeModalButton}
+                onPress={() => setShowAlertsModal(false)}
+              >
+                <Ionicons name="close" size={22} color="#94A3B8" />
+              </Pressable>
+            </View>
+
+            {loadingAlerts ? (
+              <View style={styles.alertsLoadingBox}>
+                <ActivityIndicator size="large" color="#0F9D92" />
+              </View>
+            ) : importantAlerts.length === 0 ? (
+              <View style={styles.emptyAlertsBox}>
+                <View style={styles.emptyAlertsIcon}>
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={34}
+                    color="#0F9D92"
+                  />
+                </View>
+
+                <Text style={styles.emptyAlertsTitle}>Sem avisos urgentes</Text>
+                <Text style={styles.emptyAlertsText}>
+                  Não existem vacinas, consultas, exames ou stocks críticos
+                  neste momento.
+                </Text>
+              </View>
+            ) : (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.alertsList}
+              >
+                {importantAlerts.map((alert) => (
+                  <View key={alert.id} style={styles.alertModalItem}>
+                    <View
+                      style={[
+                        styles.alertModalIconBox,
+                        { backgroundColor: alert.backgroundColor },
+                      ]}
+                    >
+                      <Ionicons
+                        name={alert.icon}
+                        size={21}
+                        color={alert.color}
+                      />
+                    </View>
+
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.alertModalItemTitle}>
+                        {alert.title}
+                      </Text>
+                      <Text style={styles.alertModalItemDescription}>
+                        {alert.description}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            <Pressable
+              style={styles.modalDashboardButton}
+              onPress={() => {
+                setShowAlertsModal(false);
+                router.push("/dashboard");
               }}
             >
-              {loadingProfile ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : resolvedPhoto ? (
-                <Image
-                  key={resolvedPhoto}
-                  source={{ uri: resolvedPhoto }}
-                  style={styles.profileImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Text style={styles.profileInitials}>{initials}</Text>
-              )}
+              <Text style={styles.modalDashboardButtonText}>
+                Ver no Dashboard
+              </Text>
             </Pressable>
           </View>
-        ),
-
-        drawerType: "front",
-      })}
-    >
-      <Drawer.Screen name="dashboard" options={{ title: "" }} />
-      <Drawer.Screen name="animais" options={{ title: "" }} />
-      <Drawer.Screen name="alimentacao" options={{ title: "" }} />
-      <Drawer.Screen name="atividade" options={{ title: "" }} />
-      <Drawer.Screen name="adocao" options={{ title: "" }} />
-      <Drawer.Screen name="profile" options={{ title: "" }} />
-      <Drawer.Screen name="saude" options={{ title: "" }} />
-      <Drawer.Screen name="calendario" options={{ title: "" }} />
-
-      <Drawer.Screen
-        name="index"
-        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
-      />
-
-      <Drawer.Screen
-        name="login"
-        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
-      />
-
-      <Drawer.Screen
-        name="registar"
-        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
-      />
-
-      <Drawer.Screen
-        name="esqueceu_password"
-        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
-      />
-
-      <Drawer.Screen
-        name="reset_password"
-        options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
-      />
-    </Drawer>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -719,5 +986,137 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 12,
     fontWeight: "800",
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.35)",
+    justifyContent: "center",
+    padding: 18,
+  },
+
+  alertsModalCard: {
+    maxHeight: "78%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+
+  alertsModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 18,
+  },
+
+  alertsModalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+
+  alertsModalSubtitle: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 19,
+    maxWidth: 240,
+  },
+
+  closeModalButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  alertsLoadingBox: {
+    paddingVertical: 45,
+    alignItems: "center",
+  },
+
+  alertsList: {
+    paddingBottom: 4,
+  },
+
+  alertModalItem: {
+    flexDirection: "row",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+
+  alertModalIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  alertModalItemTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+
+  alertModalItemDescription: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 19,
+  },
+
+  emptyAlertsBox: {
+    paddingVertical: 35,
+    alignItems: "center",
+    paddingHorizontal: 18,
+  },
+
+  emptyAlertsIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    backgroundColor: "#DBF5F1",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+
+  emptyAlertsTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 8,
+  },
+
+  emptyAlertsText: {
+    fontSize: 13,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+
+  modalDashboardButton: {
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: "#0F9D92",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+  },
+
+  modalDashboardButtonText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
 });

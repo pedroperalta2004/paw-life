@@ -181,7 +181,8 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [selectedChartAnimalId, setSelectedChartAnimalId] = useState<string>("");
+  const [selectedChartAnimalId, setSelectedChartAnimalId] =
+    useState<string>("");
   const [showChartDropdown, setShowChartDropdown] = useState(false);
 
   useEffect(() => {
@@ -353,14 +354,15 @@ export default function DashboardScreen() {
     return [...healthRecords]
       .sort(
         (a, b) =>
-          new Date(b.data_registo).getTime() -
-          new Date(a.data_registo).getTime(),
+          new Date(b.proxima_data || b.data_registo).getTime() -
+          new Date(a.proxima_data || a.data_registo).getTime(),
       )
       .slice(0, 4);
   }, [healthRecords]);
 
   const selectedChartAnimalName =
-    animals.find((animal) => animal.id_animal === selectedChartAnimalId)?.nome ??
+    animals.find((animal) => animal.id_animal === selectedChartAnimalId)
+      ?.nome ??
     animals[0]?.nome ??
     "Animal";
 
@@ -454,9 +456,9 @@ export default function DashboardScreen() {
         <View style={styles.actionRow}>
           <Pressable
             style={({ pressed }) => [
-            styles.secondaryAction,
-            pressed && styles.whiteButtonPressed,
-          ]}
+              styles.secondaryAction,
+              pressed && styles.whiteButtonPressed,
+            ]}
             onPress={() => router.push("/atividade")}
           >
             <Ionicons name="add" size={18} color="#0F172A" />
@@ -474,7 +476,7 @@ export default function DashboardScreen() {
             <Text style={styles.primaryActionText}>Registo Médico</Text>
           </Pressable>
         </View>
-                <View style={styles.alertCard}>
+        <View style={styles.alertCard}>
           <View style={styles.alertLeftBar} />
 
           <View style={styles.alertContent}>
@@ -554,7 +556,7 @@ export default function DashboardScreen() {
             </Text>
           </View>
 
-          <View style={[styles.infoIconBox, styles.iconOrange]}>
+          <View style={[styles.infoIconBox, styles.iconOrangeLight]}>
             <Ionicons name="paw-outline" size={22} color="#ca9a14" />
           </View>
         </View>
@@ -609,7 +611,7 @@ export default function DashboardScreen() {
             </Text>
           </View>
 
-          <View style={[styles.infoIconBox, styles.iconPurple]}>
+          <View style={[styles.infoIconBox, styles.iconPurpleLight]}>
             <Feather name="activity" size={22} color="#8B5CF6" />
           </View>
         </View>
@@ -838,7 +840,7 @@ export default function DashboardScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.recordTitle}>{record.titulo}</Text>
                   <Text style={styles.recordSubtitle}>
-                    {formatDate(record.data_registo)} -{" "}
+                    {formatDate(record.proxima_data || record.data_registo)} -{" "}
                     {getAnimalName(record.id_animal)}
                   </Text>
                 </View>
@@ -1197,11 +1199,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
+  
   chartDropdownItem: { paddingVertical: 10, paddingHorizontal: 14 },
   chartDropdownText: { fontSize: 13, fontWeight: "700", color: "#334155" },
-  iconGreen: { backgroundColor: "#EAF8F0" },
-  iconPurple: { backgroundColor: "#F3E8FF" },
-  iconOrange: { backgroundColor: "#FEF3C7" },
   iconBlueLight: { backgroundColor: "#EAF2FF" },
   iconPinkLight: { backgroundColor: "#E9F9F1" },
   iconPurpleLight: { backgroundColor: "#F3E8FF" },

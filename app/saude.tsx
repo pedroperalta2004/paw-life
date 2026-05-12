@@ -465,8 +465,8 @@ export default function SaudeScreen() {
     }
 
     result.sort((a, b) => {
-      const aDate = new Date(a.data_registo).getTime();
-      const bDate = new Date(b.data_registo).getTime();
+      const aDate = new Date(a.proxima_data || a.data_registo).getTime();
+      const bDate = new Date(b.proxima_data || b.data_registo).getTime();
 
       return sortOrder === "recent" ? bDate - aDate : aDate - bDate;
     });
@@ -617,7 +617,7 @@ export default function SaudeScreen() {
                   : "--"}
               </Text>
 
-              <Text style={styles.summaryDangerTextAlt}>
+              <Text style={styles.summaryDangerText}>
                 {lastRecordByType
                   ? formatRelativeDays(lastRecordByType.data_registo)
                   : "--"}
@@ -849,7 +849,7 @@ export default function SaudeScreen() {
                         color="#94A3B8"
                       />
                       <Text style={styles.recordMetaText}>
-                        {formatDate(record.data_registo)} •{" "}
+                        {formatDate(record.proxima_data || record.data_registo)} •{" "}
                         {getAnimalName(record.id_animal)}
                       </Text>
                     </View>
@@ -1027,7 +1027,7 @@ export default function SaudeScreen() {
                 <Text
                   style={formDate ? styles.dateText : styles.datePlaceholder}
                 >
-                  {formDate || "Selecionar data"}
+                  {formDate || "Selecionar data do registo"}
                 </Text>
                 <Ionicons name="calendar-outline" size={18} color="#64748B" />
               </Pressable>
@@ -1045,7 +1045,7 @@ export default function SaudeScreen() {
                 />
               )}
 
-              <Text style={styles.fieldLabel}>Próxima Data</Text>
+              <Text style={styles.fieldLabel}>Data da Marcação</Text>
               <Pressable
                 style={styles.dateInput}
                 onPress={() => setShowNextDatePicker(true)}
@@ -1055,7 +1055,7 @@ export default function SaudeScreen() {
                     formNextDate ? styles.dateText : styles.datePlaceholder
                   }
                 >
-                  {formNextDate || "Selecionar próxima data"}
+                  {formNextDate || "Selecionar data da marcação"}
                 </Text>
                 <Ionicons name="calendar-outline" size={18} color="#64748B" />
               </Pressable>
@@ -1183,11 +1183,11 @@ export default function SaudeScreen() {
                   {normalizeTypeLabel(selectedRecord.tipo_registo)}
                 </Text>
                 <Text style={styles.detailLine}>
-                  <Text style={styles.detailLabel}>Data: </Text>
+                  <Text style={styles.detailLabel}>Data do registo: </Text>
                   {formatDate(selectedRecord.data_registo)}
                 </Text>
                 <Text style={styles.detailLine}>
-                  <Text style={styles.detailLabel}>Próxima data: </Text>
+                  <Text style={styles.detailLabel}>Data da marcação: </Text>
                   {formatDate(selectedRecord.proxima_data)}
                 </Text>
                 <Text style={styles.detailLine}>
@@ -1301,41 +1301,6 @@ const styles = StyleSheet.create({
   },
 
   animalsScroll: { marginBottom: 18 },
-  animalCardChip: {
-    width: 96,
-    height: 96,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  animalCardChipActive: {
-    borderColor: "#0F9D92",
-    backgroundColor: "#F0FDFA",
-  },
-  animalIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  animalIconCircleActive: {
-    backgroundColor: "#DBF5F1",
-  },
-  animalCardText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#475569",
-  },
-  animalCardTextActive: {
-    color: "#0F9D92",
-  },
 
   topButtonsRow: {
     flexDirection: "row",
@@ -1410,7 +1375,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryDangerText: { fontSize: 15, color: "#E11D48", fontWeight: "700" },
-  summaryDangerTextAlt: { fontSize: 15, color: "#E11D48", fontWeight: "700" },
 
   searchCard: {
     backgroundColor: "#FFFFFF",
@@ -1735,12 +1699,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   detailDeleteButtonText: { color: "#DC2626", fontSize: 14, fontWeight: "800" },
-  animalChipImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 999,
-    marginBottom: 8,
-  },
 
   ButtonPressed: {
     backgroundColor: "#15968b",

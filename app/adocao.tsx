@@ -37,6 +37,7 @@ export default function AdoptionScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const hasSearch = searchText.trim().length > 0;
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     loadAssociations();
@@ -58,7 +59,7 @@ export default function AdoptionScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível carregar as associações."
+        error.message || "Não foi possível carregar as associações.",
       );
     } finally {
       setLoading(false);
@@ -86,7 +87,10 @@ export default function AdoptionScreen() {
 
   const handleCall = async (phone: string | null) => {
     if (!phone) {
-      Alert.alert("Sem telefone", "Esta associação não tem telefone registado.");
+      Alert.alert(
+        "Sem telefone",
+        "Esta associação não tem telefone registado.",
+      );
       return;
     }
 
@@ -136,8 +140,7 @@ export default function AdoptionScreen() {
         </Text>
 
         <Text style={styles.pageSubtitle}>
-          Encontre associações de adoção próximas e dê{"\n"}um lar a um animal
-          necessitado.
+          Encontre associações próximas e dê uma nova oportunidade a um animal.
         </Text>
 
         <View style={styles.searchBox}>
@@ -177,7 +180,7 @@ export default function AdoptionScreen() {
 
         <Text style={styles.searchHint}>
           {!hasSearch
-            ? "Insira a cidade ou distrito para encontrar as associações"
+            ? "Insira uma cidade ou distrito para pesquisar"
             : `${filteredAssociations.length} associações encontradas`}
         </Text>
 
@@ -187,11 +190,9 @@ export default function AdoptionScreen() {
           </View>
         ) : !hasSearch ? null : filteredAssociations.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Ionicons name="heart-outline" size={38} color="#94A3B8" />
+            <Ionicons name="business-outline" size={38} color="#94A3B8" />
 
-            <Text style={styles.emptyTitle}>
-              Sem associações encontradas
-            </Text>
+            <Text style={styles.emptyTitle}>Sem associações encontradas</Text>
 
             <Text style={styles.emptyText}>
               Tente pesquisar por outra cidade ou distrito.
@@ -201,31 +202,31 @@ export default function AdoptionScreen() {
           filteredAssociations.map((item) => (
             <View key={item.id_associacao} style={styles.associationCard}>
               <View style={styles.cardHeader}>
-                <Text style={styles.associationName}>{item.nome}</Text>
+                <View style={styles.titleBlock}>
+                  <Text style={styles.associationName}>{item.nome}</Text>
+
+                  <View style={styles.statusRow}>
+                    <View style={styles.statusBadge}>
+                      <View style={styles.statusDot} />
+                      <Text style={styles.statusText}>Associação ativa</Text>
+                    </View>
+                  </View>
+                </View>
 
                 <View style={styles.ratingBadge}>
-                  <Ionicons name="paw" size={14} color="#F59E0B" />
+                  <Ionicons name="paw" size={15} color="#F59E0B" />
                 </View>
               </View>
 
-              <View style={styles.infoRow}>
-                <Ionicons
-                  name="location-outline"
-                  size={16}
-                  color="#64748B"
-                />
+              <View style={styles.locationBlock}>
+                <View style={styles.locationHeader}>
+                  <Ionicons name="location-outline" size={17} color="#0F9D92" />
+                  <Text style={styles.locationMain}>
+                    {[item.cidade, item.distrito].filter(Boolean).join(", ")}
+                  </Text>
+                </View>
 
-                <Text style={styles.infoText}>
-                  {[item.cidade, item.distrito]
-                    .filter(Boolean)
-                    .join(", ")}
-                </Text>
-              </View>
-
-              <View style={styles.infoRow}>
-                <Ionicons name="pin-outline" size={16} color="#64748B" />
-
-                <Text style={styles.infoText}>
+                <Text style={styles.addressText}>
                   {[item.morada, item.codigo_postal]
                     .filter(Boolean)
                     .join(", ") || "Morada não definida"}
@@ -233,21 +234,43 @@ export default function AdoptionScreen() {
               </View>
 
               {item.descricao ? (
-                <Text style={styles.description}>{item.descricao}</Text>
+                <>
+                  <Text
+                    style={styles.description}
+                    numberOfLines={
+                      expandedId === item.id_associacao ? undefined : 4
+                    }
+                  >
+                    {item.descricao}
+                  </Text>
+
+                  <Pressable
+                    onPress={() =>
+                      setExpandedId((prev) =>
+                        prev === item.id_associacao ? null : item.id_associacao,
+                      )
+                    }
+                  >
+                    <Text style={styles.readMoreText}>
+                      {expandedId === item.id_associacao
+                        ? "Ver menos"
+                        : "Ver mais"}
+                    </Text>
+                  </Pressable>
+                </>
               ) : null}
 
               <View style={styles.tagsRow}>
-                <View style={styles.availableBox}>
-                  <Text style={styles.availableLabel}>Associação</Text>
-                  <Text style={styles.availableValue}>Ativa</Text>
-                </View>
-
                 <View style={styles.tag}>
                   <Text style={styles.tagText}>Cães</Text>
                 </View>
 
                 <View style={styles.tag}>
                   <Text style={styles.tagText}>Gatos</Text>
+                </View>
+
+                <View style={styles.tagSoft}>
+                  <Text style={styles.tagSoftText}>Adoção responsável</Text>
                 </View>
               </View>
 
@@ -262,7 +285,7 @@ export default function AdoptionScreen() {
                   onPress={() => handleCall(item.telefone)}
                 >
                   <Ionicons
-                    name="call-outline"
+                    name="call"
                     size={15}
                     color="#FFFFFF"
                     style={{ marginRight: 6 }}
@@ -302,7 +325,7 @@ export default function AdoptionScreen() {
                     style={{ marginRight: 6 }}
                   />
 
-                  <Text style={styles.websiteButtonText}>Site</Text>
+                  <Text style={styles.websiteButtonText}>Website</Text>
                 </Pressable>
               </View>
             </View>
@@ -319,9 +342,9 @@ export default function AdoptionScreen() {
           </View>
 
           <Text style={styles.infoDescription}>
-            Ao adotar um animal, está a dar uma segunda oportunidade e a ganhar
-            um companheiro leal. Entre em contacto com as associações para
-            conhecer os animais disponíveis e encontrar o seu novo melhor amigo.
+            Ao adotar, está a dar uma segunda oportunidade e a ganhar um
+            companheiro leal. Contacte as associações para conhecer os animais
+            disponíveis.
           </Text>
 
           <View style={styles.infoList}>
@@ -369,7 +392,7 @@ const styles = StyleSheet.create({
 
   pageSubtitle: {
     fontSize: 14,
-    color: "#334155",
+    color: "#64748B",
     lineHeight: 22,
     marginBottom: 22,
   },
@@ -489,7 +512,7 @@ const styles = StyleSheet.create({
 
   associationCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#E5E7EB",
     padding: 18,
@@ -505,53 +528,96 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 10,
+    marginBottom: 14,
+  },
+
+  titleBlock: {
+    flex: 1,
+    paddingRight: 12,
   },
 
   associationName: {
-    flex: 1,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "800",
     color: "#0F172A",
-    lineHeight: 26,
-    marginRight: 10,
+    lineHeight: 27,
+    marginBottom: 8,
   },
 
   ratingBadge: {
-    height: 32,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     backgroundColor: "#FFF7E6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  statusRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 9,
   },
 
-  ratingText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#F59E0B",
-    marginLeft: 4,
-  },
-
-  infoRow: {
+  statusBadge: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 10,
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
 
-  infoText: {
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#0F9D92",
+    marginRight: 6,
+  },
+
+  statusText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#0F9D92",
+  },
+
+  locationBlock: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 12,
+    marginBottom: 14,
+  },
+
+  locationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  locationMain: {
     flex: 1,
-    marginLeft: 9,
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 20,
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#334155",
+    lineHeight: 21,
   },
 
-  description: {
+  addressText: {
     fontSize: 13,
     color: "#64748B",
     lineHeight: 20,
-    marginTop: 2,
+    paddingLeft: 25,
+  },
+
+  description: {
+    fontSize: 14,
+    color: "#64748B",
+    lineHeight: 21,
     marginBottom: 14,
   },
 
@@ -560,48 +626,38 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexWrap: "wrap",
     gap: 8,
-    marginTop: 4,
-  },
-
-  availableBox: {
-    minWidth: 130,
-    backgroundColor: "#EAFBF7",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginRight: 4,
-  },
-
-  availableLabel: {
-    fontSize: 12,
-    color: "#0F9D92",
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-
-  availableValue: {
-    fontSize: 18,
-    color: "#0F9D92",
-    fontWeight: "800",
   },
 
   tag: {
     backgroundColor: "#F1F5F9",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
   },
 
   tagText: {
     fontSize: 12,
     color: "#334155",
-    fontWeight: "600",
+    fontWeight: "800",
+  },
+
+  tagSoft: {
+    backgroundColor: "#EAFBF7",
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+
+  tagSoftText: {
+    fontSize: 12,
+    color: "#0F9D92",
+    fontWeight: "800",
   },
 
   separator: {
     height: 1,
     backgroundColor: "#E5E7EB",
-    marginVertical: 18,
+    marginVertical: 16,
   },
 
   buttonsRow: {
@@ -629,7 +685,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#EEF2F7",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -730,12 +788,20 @@ const styles = StyleSheet.create({
   },
 
   emailButtonPressed: {
-    backgroundColor: "#edeeee",
+    backgroundColor: "#F1F5F9",
     transform: [{ scale: 0.99 }],
   },
 
   websiteButtonPressed: {
     backgroundColor: "#354769",
     transform: [{ scale: 0.99 }],
+  },
+
+  readMoreText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#0F9D92",
+    marginTop: -8,
+    marginBottom: 14,
   },
 });

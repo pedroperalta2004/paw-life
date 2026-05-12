@@ -105,7 +105,7 @@ export default function FoodScreen() {
     } catch (error: any) {
       Alert.alert(
         "Erro",
-        error.message || "Não foi possível carregar a alimentação."
+        error.message || "Não foi possível carregar a alimentação.",
       );
     } finally {
       setLoading(false);
@@ -133,7 +133,7 @@ export default function FoodScreen() {
     if (animals.length === 0) {
       Alert.alert(
         "Sem animais",
-        "Primeiro precisa de registar pelo menos um animal."
+        "Primeiro precisa de registar pelo menos um animal.",
       );
       return;
     }
@@ -186,7 +186,7 @@ export default function FoodScreen() {
     if (!permission.granted) {
       Alert.alert(
         "Permissão necessária",
-        "É necessário permitir acesso à galeria."
+        "É necessário permitir acesso à galeria.",
       );
       return;
     }
@@ -209,7 +209,7 @@ export default function FoodScreen() {
     if (!permission.granted) {
       Alert.alert(
         "Permissão necessária",
-        "É necessário permitir acesso à câmara."
+        "É necessário permitir acesso à câmara.",
       );
       return;
     }
@@ -258,7 +258,7 @@ export default function FoodScreen() {
   const uploadFoodImage = async (
     imageUri: string,
     userId: string,
-    foodId: string
+    foodId: string,
   ) => {
     const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpg";
     const filePath = `${userId}/${foodId}-${Date.now()}.${fileExt}`;
@@ -273,8 +273,8 @@ export default function FoodScreen() {
       fileExt === "png"
         ? "image/png"
         : fileExt === "webp"
-        ? "image/webp"
-        : "image/jpeg";
+          ? "image/webp"
+          : "image/jpeg";
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_NAME)
@@ -312,8 +312,8 @@ export default function FoodScreen() {
 
       setFoods((prev) =>
         prev.map((item) =>
-          item.id_alimentacao === food.id_alimentacao ? data : item
-        )
+          item.id_alimentacao === food.id_alimentacao ? data : item,
+        ),
       );
     } catch (error: any) {
       Alert.alert("Erro", error.message || "Não foi possível dar a porção.");
@@ -333,13 +333,13 @@ export default function FoodScreen() {
 
       setFoods((prev) =>
         prev.map((item) =>
-          item.id_alimentacao === food.id_alimentacao ? data : item
-        )
+          item.id_alimentacao === food.id_alimentacao ? data : item,
+        ),
       );
 
       Alert.alert(
         "Stock reposto",
-        "O stock foi atualizado para o saco completo."
+        "O stock foi atualizado para o saco completo.",
       );
     } catch (error: any) {
       Alert.alert("Erro", error.message || "Não foi possível repor o stock.");
@@ -356,7 +356,7 @@ export default function FoodScreen() {
     ) {
       Alert.alert(
         "Campos obrigatórios",
-        "Preencha o animal, nome da ração, stock atual, stock total e porção diária."
+        "Preencha o animal, nome da ração, stock atual, stock total e porção diária.",
       );
       return;
     }
@@ -364,6 +364,14 @@ export default function FoodScreen() {
     const stockAtual = Number(formStockAtual.replace(",", "."));
     const stockTotal = Number(formStockTotal.replace(",", "."));
     const porcaoDiaria = Number(formPorcaoDiaria.replace(",", "."));
+    
+    if (stockTotal < stockAtual) {
+          Alert.alert(
+            "Stock inválido",
+            "O stock total não pode ser inferior ao stock atual."
+          );
+          return
+    }
 
     if (
       Number.isNaN(stockAtual) ||
@@ -372,7 +380,7 @@ export default function FoodScreen() {
     ) {
       Alert.alert(
         "Valores inválidos",
-        "Os campos numéricos devem conter números."
+        "Os campos numéricos devem conter números.",
       );
       return;
     }
@@ -380,9 +388,11 @@ export default function FoodScreen() {
     if (stockAtual < 0 || stockTotal <= 0 || porcaoDiaria <= 0) {
       Alert.alert(
         "Valores inválidos",
-        "O stock total e a porção diária devem ser superiores a 0."
+        "O stock total e a porção diária devem ser superiores a 0.",
       );
       return;
+
+      
     }
 
     try {
@@ -421,7 +431,7 @@ export default function FoodScreen() {
           finalPhotoUrl = await uploadFoodImage(
             formFoodImage,
             user.id,
-            editingFood.id_alimentacao
+            editingFood.id_alimentacao,
           );
         }
 
@@ -439,8 +449,8 @@ export default function FoodScreen() {
 
         setFoods((prev) =>
           prev.map((item) =>
-            item.id_alimentacao === editingFood.id_alimentacao ? data : item
-          )
+            item.id_alimentacao === editingFood.id_alimentacao ? data : item,
+          ),
         );
 
         Alert.alert("Sucesso", "Plano de alimentação atualizado.");
@@ -464,7 +474,7 @@ export default function FoodScreen() {
           const publicUrl = await uploadFoodImage(
             formFoodImage,
             user.id,
-            insertedFood.id_alimentacao
+            insertedFood.id_alimentacao,
           );
 
           const { data: updatedFood, error: updatePhotoError } = await supabase
@@ -486,10 +496,7 @@ export default function FoodScreen() {
       setShowModal(false);
       resetForm();
     } catch (error: any) {
-      Alert.alert(
-        "Erro",
-        error.message || "Não foi possível guardar o plano."
-      );
+      Alert.alert("Erro", error.message || "Não foi possível guardar o plano.");
     } finally {
       setSaving(false);
     }
@@ -519,20 +526,20 @@ export default function FoodScreen() {
 
               setFoods((prev) =>
                 prev.filter(
-                  (item) => item.id_alimentacao !== food.id_alimentacao
-                )
+                  (item) => item.id_alimentacao !== food.id_alimentacao,
+                ),
               );
 
               Alert.alert("Sucesso", "Plano eliminado.");
             } catch (error: any) {
               Alert.alert(
                 "Erro",
-                error.message || "Não foi possível eliminar o plano."
+                error.message || "Não foi possível eliminar o plano.",
               );
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -540,7 +547,7 @@ export default function FoodScreen() {
     if (!url) {
       Alert.alert(
         "Sem link",
-        "Este plano ainda não tem um link de compra associado."
+        "Este plano ainda não tem um link de compra associado.",
       );
       return;
     }
@@ -583,7 +590,8 @@ export default function FoodScreen() {
             styles.addButton,
             pressed && styles.greenButtonPressed,
           ]}
-          onPress={openCreateModal}>
+          onPress={openCreateModal}
+        >
           <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={styles.addButtonText}>Novo Saco de Ração</Text>
         </Pressable>
@@ -604,12 +612,12 @@ export default function FoodScreen() {
           foods.map((item) => {
             const progress = getProgressPercent(
               Number(item.stock_atual),
-              Number(item.stock_total)
+              Number(item.stock_total),
             );
 
             const estimatedDays = getEstimatedDays(
               Number(item.stock_atual),
-              Number(item.porcao_diaria)
+              Number(item.porcao_diaria),
             );
 
             const critical = estimatedDays <= 7;
@@ -637,7 +645,9 @@ export default function FoodScreen() {
                       size={50}
                       color="#CBD5E1"
                     />
-                    <Text style={styles.placeholderText}>Sem foto da ração</Text>
+                    <Text style={styles.placeholderText}>
+                      Sem foto da ração
+                    </Text>
                   </View>
                 )}
 
@@ -712,7 +722,8 @@ export default function FoodScreen() {
                       />
 
                       <Text style={styles.alertText}>
-                        Stock crítico! Recomendamos a compra de um novo saco em breve.
+                        Stock crítico! Recomendamos a compra de um novo saco em
+                        breve.
                       </Text>
 
                       <Pressable
@@ -737,10 +748,13 @@ export default function FoodScreen() {
                   )}
 
                   <View style={styles.actionRow}>
-                    <Pressable style={({ pressed }) => [
-                      styles.feedButton,
-                      pressed && styles.greenButtonPressed,]}
-                      onPress={() => handleFeedPet(item)}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.feedButton,
+                        pressed && styles.greenButtonPressed,
+                      ]}
+                      onPress={() => handleFeedPet(item)}
+                    >
                       <MaterialCommunityIcons
                         name="food-drumstick"
                         size={16}
@@ -750,25 +764,31 @@ export default function FoodScreen() {
                       <Text style={styles.feedButtonText}>Dar porção</Text>
                     </Pressable>
 
-                    <Pressable style={({ pressed }) => [
-                      styles.iconButton,
-                      pressed && styles.iconButtonPressed,]}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.iconButton,
+                        pressed && styles.iconButtonPressed,
+                      ]}
                       onPress={() => openEditModal(item)}
                     >
                       <Feather name="edit-2" size={16} color="#475569" />
                     </Pressable>
 
-                    <Pressable style={({ pressed }) => [
-                      styles.deleteButton,
-                      pressed && styles.deleteButtonPressed,]}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.deleteButton,
+                        pressed && styles.deleteButtonPressed,
+                      ]}
                       onPress={() => handleDeleteFood(item)}
                     >
                       <Feather name="trash-2" size={15} color="#DC2626" />
                     </Pressable>
 
-                    <Pressable style={({ pressed }) => [
-                      styles.buyButton,
-                      pressed && styles.buyButtonPressed,]}
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.buyButton,
+                        pressed && styles.buyButtonPressed,
+                      ]}
                       onPress={() => handleBuy(item.link_compra)}
                     >
                       <Feather name="shopping-cart" size={16} color="#FFFFFF" />
@@ -904,7 +924,7 @@ export default function FoodScreen() {
 
               <View style={styles.modalButtons}>
                 <Pressable
-                   style={({ pressed }) => [
+                  style={({ pressed }) => [
                     styles.cancelButton,
                     pressed && styles.whiteButtonPressed,
                   ]}
@@ -917,7 +937,7 @@ export default function FoodScreen() {
                 </Pressable>
 
                 <Pressable
-                   style={({ pressed }) => [
+                  style={({ pressed }) => [
                     styles.saveButton,
                     pressed && styles.greenButtonPressed,
                   ]}
@@ -1443,7 +1463,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fddbdb",
     transform: [{ scale: 0.99 }],
   },
-  
+
   buyButtonPressed: {
     backgroundColor: "#354769",
     transform: [{ scale: 0.99 }],

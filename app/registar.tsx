@@ -12,9 +12,9 @@ import {
   Text,
   TextInput,
   View,
+  BackHandler,
 } from "react-native";
 import { supabase } from "../src/lib/supabase";
-import { BackHandler } from "react-native";
 import { useFocusEffect } from "expo-router";
 
 export default function RegisterScreen() {
@@ -36,7 +36,7 @@ export default function RegisterScreen() {
     if (password.length < 6) {
       Alert.alert(
         "Palavra-passe inválida",
-        "A palavra-passe deve ter pelo menos 6 caracteres."
+        "A palavra-passe deve ter pelo menos 6 caracteres.",
       );
       return;
     }
@@ -77,17 +77,17 @@ export default function RegisterScreen() {
     router.replace("/login");
   };
 
-    useFocusEffect(
-      useCallback(() => {
-        const backHandler = BackHandler.addEventListener(
-          "hardwareBackPress",
-          () => true
-        );
-  
-        return () => backHandler.remove();
-      }, [])
-    );
-    
+  useFocusEffect(
+    useCallback(() => {
+      const backHandler = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => true,
+      );
+
+      return () => backHandler.remove();
+    }, []),
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
