@@ -131,9 +131,12 @@ function MenuItem({
 
 function CustomDrawerContent(props: any) {
   const currentRoute = props.state.routes[props.state.index]?.name ?? "";
+  const { onLogoutClear } = props;
 
   const handleLogout = async () => {
     try {
+      onLogoutClear?.();
+
       const { error } = await supabase.auth.signOut();
 
       if (error) {
@@ -335,6 +338,12 @@ export default function RootLayout() {
       setLoadingProfile(false);
     }
   }, []);
+
+  const clearUserState = () => {
+    setFullName("");
+    setProfilePhotoUrl(null);
+    setImportantAlerts([]);
+  };
 
   const loadImportantAlerts = useCallback(async () => {
     try {
@@ -544,7 +553,9 @@ export default function RootLayout() {
     <>
       <Drawer
         initialRouteName="index"
-        drawerContent={(props) => <CustomDrawerContent {...props} />}
+        drawerContent={(props) => (
+          <CustomDrawerContent {...props} onLogoutClear={clearUserState} />
+        )}
         screenListeners={({ route }) => ({
           focus: async () => {
             if (PUBLIC_ROUTES.includes(route.name)) {
@@ -624,9 +635,11 @@ export default function RootLayout() {
             <View style={styles.headerRightWrap}>
               <Pressable
                 style={styles.notificationButton}
-                onPress={async () => {
-                  await loadImportantAlerts();
+                onPress={() => {
                   setShowAlertsModal(true);
+                  setTimeout(() => {
+                    loadImportantAlerts();
+                  }, 300);
                 }}
               >
                 <Ionicons

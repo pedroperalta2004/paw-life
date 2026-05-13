@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
   FontAwesome5,
 } from "@expo/vector-icons";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { supabase } from "../src/lib/supabase";
 
 type Animal = {
@@ -185,9 +185,18 @@ export default function DashboardScreen() {
     useState<string>("");
   const [showChartDropdown, setShowChartDropdown] = useState(false);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setUserName("");
+      setAnimals([]);
+      setHealthRecords([]);
+      setFoods([]);
+      setWeights([]);
+      setLoading(true);
+
+      loadDashboard();
+    }, []),
+  );
 
   useEffect(() => {
     if (!selectedChartAnimalId && animals.length > 0) {
@@ -1199,7 +1208,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  
+
   chartDropdownItem: { paddingVertical: 10, paddingHorizontal: 14 },
   chartDropdownText: { fontSize: 13, fontWeight: "700", color: "#334155" },
   iconBlueLight: { backgroundColor: "#EAF2FF" },

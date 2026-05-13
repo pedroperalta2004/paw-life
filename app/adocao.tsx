@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { Ionicons, Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "../src/lib/supabase";
+import { useFocusEffect } from "expo-router";
 
 type Association = {
   id_associacao: string;
@@ -39,9 +40,16 @@ export default function AdoptionScreen() {
   const hasSearch = searchText.trim().length > 0;
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAssociations();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setAssociations([]);
+      setSearchText("");
+      setExpandedId(null);
+      setLoading(true);
+
+      loadAssociations();
+    }, []),
+  );
 
   const loadAssociations = async () => {
     try {

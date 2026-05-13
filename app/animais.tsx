@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { decode } from "base64-arraybuffer";
 import { supabase } from "../src/lib/supabase";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { useFocusEffect } from "expo-router";
 
 type Animal = {
   id_animal: string;
@@ -140,9 +141,14 @@ export default function PetsScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadAnimals();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setAnimals([]);
+      setLoadingAnimals(true);
+
+      loadAnimals();
+    }, []),
+  );
 
   const loadAnimals = async () => {
     try {

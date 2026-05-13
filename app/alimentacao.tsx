@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { decode } from "base64-arraybuffer";
 import { supabase } from "../src/lib/supabase";
+import { useFocusEffect } from "expo-router";
 
 const BUCKET_NAME = "food-images";
 
@@ -56,9 +57,16 @@ export default function FoodScreen() {
   const [formLinkCompra, setFormLinkCompra] = useState("");
   const [formFoodImage, setFormFoodImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setAnimals([]);
+      setFoods([]);
+      setFormAnimalId("");
+      setLoading(true);
+
+      loadData();
+    }, []),
+  );
 
   const loadData = async () => {
     try {
@@ -364,14 +372,6 @@ export default function FoodScreen() {
     const stockAtual = Number(formStockAtual.replace(",", "."));
     const stockTotal = Number(formStockTotal.replace(",", "."));
     const porcaoDiaria = Number(formPorcaoDiaria.replace(",", "."));
-    
-    if (stockTotal < stockAtual) {
-          Alert.alert(
-            "Stock inválido",
-            "O stock total não pode ser inferior ao stock atual."
-          );
-          return
-    }
 
     if (
       Number.isNaN(stockAtual) ||
@@ -391,8 +391,14 @@ export default function FoodScreen() {
         "O stock total e a porção diária devem ser superiores a 0.",
       );
       return;
+    }
 
-      
+    if (stockTotal < stockAtual) {
+      Alert.alert(
+        "Stock inválido",
+        "O stock total não pode ser inferior ao stock atual.",
+      );
+      return;
     }
 
     try {

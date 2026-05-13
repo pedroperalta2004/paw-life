@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { supabase } from "../src/lib/supabase";
+import { useFocusEffect } from "expo-router";
 
 type Animal = {
   id_animal: string;
@@ -105,13 +106,20 @@ export default function AtividadeScreen() {
   );
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    loadData();
+  useFocusEffect(
+    useCallback(() => {
+      setAnimals([]);
+      setActivities([]);
+      setSelectedAnimalId("");
+      setLoading(true);
 
-    return () => {
-      stopLocationWatchOnly();
-    };
-  }, []);
+      loadData();
+
+      return () => {
+        stopLocationWatchOnly();
+      };
+    }, []),
+  );
 
   const loadData = async () => {
     try {

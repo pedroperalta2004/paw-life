@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../src/lib/supabase";
+import { useFocusEffect } from "expo-router";
 
 const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -125,9 +126,14 @@ export default function CalendarioScreen() {
       ? today.getDate()
       : null;
 
-  useEffect(() => {
-    loadCalendarEvents();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setEvents([]);
+      setLoading(true);
+
+      loadCalendarEvents();
+    }, []),
+  );
 
   const loadCalendarEvents = async () => {
     try {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import {
 } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "../src/lib/supabase";
+import { useFocusEffect } from "expo-router";
 
 type Animal = {
   id_animal: string;
@@ -182,9 +183,18 @@ export default function SaudeScreen() {
   const [visibleCount, setVisibleCount] = useState(5);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setAnimals([]);
+      setRecords([]);
+      setSelectedAnimalId("all");
+      setSearchText("");
+      setVisibleCount(5);
+      setLoading(true);
+
+      loadData();
+    }, []),
+  );
 
   const loadData = async () => {
     try {
@@ -496,6 +506,7 @@ export default function SaudeScreen() {
   const upcomingRecord = useMemo(() => {
     const futureRecords = filteredRecords
       .filter((r) => r.proxima_data)
+      .filter((r) => (r.estado ?? "").toLowerCase() !== "concluído")
       .sort(
         (a, b) =>
           new Date(a.proxima_data as string).getTime() -
@@ -506,6 +517,10 @@ export default function SaudeScreen() {
   }, [filteredRecords]);
 
   const lastRecordByType = useMemo(() => {
+    const getDateValue = (record: HealthRecord) => {
+      return new Date(record.proxima_data || record.data_registo).getTime();
+    };
+
     if (selectedType === "Todos") {
       const consultations = filteredRecords
         .filter(
@@ -513,11 +528,7 @@ export default function SaudeScreen() {
             normalizeTypeLabel(r.tipo_registo) === "Consulta" &&
             (r.estado ?? "").toLowerCase() === "concluído",
         )
-        .sort(
-          (a, b) =>
-            new Date(b.data_registo).getTime() -
-            new Date(a.data_registo).getTime(),
-        );
+        .sort((a, b) => getDateValue(b) - getDateValue(a));
 
       return consultations[0] ?? null;
     }
@@ -528,11 +539,7 @@ export default function SaudeScreen() {
           normalizeTypeLabel(r.tipo_registo) === selectedType &&
           (r.estado ?? "").toLowerCase() === "concluído",
       )
-      .sort(
-        (a, b) =>
-          new Date(b.data_registo).getTime() -
-          new Date(a.data_registo).getTime(),
-      );
+      .sort((a, b) => getDateValue(b) - getDateValue(a));
 
     return recordsOfType[0] ?? null;
   }, [filteredRecords, selectedType]);
@@ -619,7 +626,10 @@ export default function SaudeScreen() {
 
               <Text style={styles.summaryDangerText}>
                 {lastRecordByType
-                  ? formatRelativeDays(lastRecordByType.data_registo)
+                  ? formatRelativeDays(
+                      lastRecordByType.proxima_data ||
+                        lastRecordByType.data_registo,
+                    )
                   : "--"}
               </Text>
             </View>
@@ -671,49 +681,50 @@ export default function SaudeScreen() {
         </Pressable>
 
         <ScrollView
-  horizontal
-  showsHorizontalScrollIndicator={false}
-  style={styles.animalsScroll}
->
-  {animals.map((animal) => (
-    <Pressable
-      key={animal.id_animal}
-      style={styles.animalAvatarWrapper}
-      onPress={() => setSelectedAnimalId(animal.id_animal)}
-    >
-      <View
-        style={[
-          styles.animalAvatar,
-          selectedAnimalId === animal.id_animal && styles.animalAvatarActive,
-        ]}
-      >
-        {animal.fotografia_url ? (
-          <Image
-            source={{ uri: animal.fotografia_url }}
-            style={styles.animalAvatarImage}
-          />
-        ) : (
-          <Ionicons name="paw-outline" size={24} color="#64748B" />
-        )}
-      </View>
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.animalsScroll}
+        >
+          {animals.map((animal) => (
+            <Pressable
+              key={animal.id_animal}
+              style={styles.animalAvatarWrapper}
+              onPress={() => setSelectedAnimalId(animal.id_animal)}
+            >
+              <View
+                style={[
+                  styles.animalAvatar,
+                  selectedAnimalId === animal.id_animal &&
+                    styles.animalAvatarActive,
+                ]}
+              >
+                {animal.fotografia_url ? (
+                  <Image
+                    source={{ uri: animal.fotografia_url }}
+                    style={styles.animalAvatarImage}
+                  />
+                ) : (
+                  <Ionicons name="paw-outline" size={24} color="#64748B" />
+                )}
+              </View>
 
-      <Text
-        style={[
-          styles.animalAvatarName,
-          selectedAnimalId === animal.id_animal &&
-            styles.animalAvatarNameActive,
-        ]}
-        numberOfLines={1}
-      >
-        {animal.nome}
-      </Text>
-    </Pressable>
-  ))}
-</ScrollView>
+              <Text
+                style={[
+                  styles.animalAvatarName,
+                  selectedAnimalId === animal.id_animal &&
+                    styles.animalAvatarNameActive,
+                ]}
+                numberOfLines={1}
+              >
+                {animal.nome}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
         <View style={styles.topButtonsRow}>
           <Pressable
-             style={({ pressed }) => [
+            style={({ pressed }) => [
               styles.filterButton,
               pressed && styles.whiteButtonPressed,
             ]}
@@ -725,7 +736,13 @@ export default function SaudeScreen() {
             <Text style={styles.filterButtonText}>Filtrar</Text>
           </Pressable>
 
-          <Pressable style={({ pressed }) => [styles.newRecordButton, pressed && styles.ButtonPressed,]} onPress={handleOpenCreate}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.newRecordButton,
+              pressed && styles.ButtonPressed,
+            ]}
+            onPress={handleOpenCreate}
+          >
             <Ionicons name="add" size={20} color="#FFFFFF" />
             <Text style={styles.newRecordButtonText}>Novo Registo</Text>
           </Pressable>
@@ -773,7 +790,7 @@ export default function SaudeScreen() {
             </View>
 
             <Pressable
-               style={({ pressed }) => [
+              style={({ pressed }) => [
                 styles.sortButton,
                 pressed && styles.whiteButtonPressed,
               ]}
@@ -849,8 +866,8 @@ export default function SaudeScreen() {
                         color="#94A3B8"
                       />
                       <Text style={styles.recordMetaText}>
-                        {formatDate(record.proxima_data || record.data_registo)} •{" "}
-                        {getAnimalName(record.id_animal)}
+                        {formatDate(record.proxima_data || record.data_registo)}{" "}
+                        • {getAnimalName(record.id_animal)}
                       </Text>
                     </View>
 
@@ -895,10 +912,10 @@ export default function SaudeScreen() {
 
                       {!isDone && (
                         <Pressable
-                        style={({ pressed }) => [
-                          styles.completeSmallButton,
-                          pressed && styles.completeButtonPressed,
-                        ]}
+                          style={({ pressed }) => [
+                            styles.completeSmallButton,
+                            pressed && styles.completeButtonPressed,
+                          ]}
                           onPress={() => handleCompleteRecord(record)}
                         >
                           <Feather name="check" size={17} color="#0F9D92" />
@@ -1139,7 +1156,7 @@ export default function SaudeScreen() {
                 </Pressable>
 
                 <Pressable
-                    style={({ pressed }) => [
+                  style={({ pressed }) => [
                     styles.saveButton,
                     pressed && styles.ButtonPressed,
                   ]}
@@ -1149,7 +1166,7 @@ export default function SaudeScreen() {
                   {saving ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.saveButtonText} > 
+                    <Text style={styles.saveButtonText}>
                       {editingRecord ? "Guardar Alterações" : "Guardar"}
                     </Text>
                   )}
@@ -1214,9 +1231,9 @@ export default function SaudeScreen() {
                 <View style={styles.detailActionsRow}>
                   <Pressable
                     style={({ pressed }) => [
-                          styles.detailEditButton,
-                          pressed && styles.editButtonPressed,
-                        ]}
+                      styles.detailEditButton,
+                      pressed && styles.editButtonPressed,
+                    ]}
                     onPress={() => handleOpenEdit(selectedRecord)}
                   >
                     <Text style={styles.detailEditButtonText}>Editar</Text>
@@ -1224,9 +1241,9 @@ export default function SaudeScreen() {
 
                   <Pressable
                     style={({ pressed }) => [
-                          styles.detailStatusButton,
-                          pressed && styles.completeButtonPressed,
-                        ]}
+                      styles.detailStatusButton,
+                      pressed && styles.completeButtonPressed,
+                    ]}
                     onPress={() => handleToggleStatus(selectedRecord)}
                   >
                     <Text style={styles.detailStatusButtonText}>
@@ -1239,9 +1256,9 @@ export default function SaudeScreen() {
 
                 <Pressable
                   style={({ pressed }) => [
-                          styles.detailDeleteButton,
-                          pressed && styles.deleteButtonPressed,
-                        ]}
+                    styles.detailDeleteButton,
+                    pressed && styles.deleteButtonPressed,
+                  ]}
                   onPress={() => handleDeleteRecord(selectedRecord)}
                 >
                   <Text style={styles.detailDeleteButtonText}>
@@ -1705,12 +1722,12 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
 
-   whiteButtonPressed: {
+  whiteButtonPressed: {
     backgroundColor: "#eff0f0",
     transform: [{ scale: 0.99 }],
   },
 
-   editButtonPressed: {
+  editButtonPressed: {
     backgroundColor: "#f3f4f4",
     transform: [{ scale: 0.99 }],
   },
@@ -1726,43 +1743,43 @@ const styles = StyleSheet.create({
   },
 
   animalAvatarWrapper: {
-  alignItems: "center",
-  marginRight: 14,
-  width: 74,
-},
+    alignItems: "center",
+    marginRight: 14,
+    width: 74,
+  },
 
-animalAvatar: {
-  width: 62,
-  height: 62,
-  borderRadius: 31,
-  backgroundColor: "#FFFFFF",
-  borderWidth: 2,
-  borderColor: "#E2E8F0",
-  alignItems: "center",
-  justifyContent: "center",
-  overflow: "hidden",
-},
+  animalAvatar: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
 
-animalAvatarActive: {
-  borderColor: "#0F9D92",
-  backgroundColor: "#DBF5F1",
-},
+  animalAvatarActive: {
+    borderColor: "#0F9D92",
+    backgroundColor: "#DBF5F1",
+  },
 
-animalAvatarImage: {
-  width: "100%",
-  height: "100%",
-},
+  animalAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
 
-animalAvatarName: {
-  marginTop: 6,
-  fontSize: 12,
-  color: "#64748B",
-  fontWeight: "600",
-  textAlign: "center",
-},
+  animalAvatarName: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#64748B",
+    fontWeight: "600",
+    textAlign: "center",
+  },
 
-animalAvatarNameActive: {
-  color: "#0F9D92",
-  fontWeight: "800",
-},
+  animalAvatarNameActive: {
+    color: "#0F9D92",
+    fontWeight: "800",
+  },
 });

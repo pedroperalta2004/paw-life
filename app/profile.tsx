@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { decode } from "base64-arraybuffer";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../src/lib/supabase";
+import { useFocusEffect } from "expo-router";
 
 const BUCKET_NAME = "profile-images";
 
@@ -72,9 +73,18 @@ export default function ProfileScreen() {
     return url ? `${url}?t=${Date.now()}` : null;
   }, [photoPath]);
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      setFullName("");
+      setEmail("");
+      setPhotoPath(null);
+      setMemberSince(null);
+      setPetCount(0);
+      setLoading(true);
+
+      loadProfile();
+    }, [])
+  );
 
   const loadProfile = async () => {
     try {
