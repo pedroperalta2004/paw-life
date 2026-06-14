@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -32,6 +32,8 @@ type Association = {
 };
 
 export default function AdoptionScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+
   const [associations, setAssociations] = useState<Association[]>([]);
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -42,6 +44,8 @@ export default function AdoptionScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+
       setAssociations([]);
       setSearchText("");
       setExpandedId(null);
@@ -132,6 +136,7 @@ export default function AdoptionScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={

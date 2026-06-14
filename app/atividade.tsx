@@ -867,8 +867,8 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.7 },
   mainButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "700",
   },
   trackingCard: {
     backgroundColor: "#FFFFFF",

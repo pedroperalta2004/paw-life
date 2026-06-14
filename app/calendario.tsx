@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -106,6 +106,8 @@ function generateMonthWeeks(year: number, month: number) {
 }
 
 export default function CalendarioScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,6 +130,8 @@ export default function CalendarioScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+
       setEvents([]);
       setLoading(true);
 
@@ -255,6 +259,7 @@ export default function CalendarioScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={

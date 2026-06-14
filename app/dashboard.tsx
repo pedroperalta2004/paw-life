@@ -317,14 +317,27 @@ export default function DashboardScreen() {
 
   const upcomingRecords = useMemo(() => {
     return healthRecords
-      .filter((record) => record.proxima_data && !isDone(record.estado))
-      .filter((record) => String(record.proxima_data) >= todayKey)
+      .filter((record) => {
+        if (!record.proxima_data || isDone(record.estado)) return false;
+
+        const today = new Date();
+        const target = new Date(record.proxima_data);
+
+        today.setHours(0, 0, 0, 0);
+        target.setHours(0, 0, 0, 0);
+
+        const diffDays = Math.round(
+          (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        return diffDays >= 0 && diffDays <= 7;
+      })
       .sort(
         (a, b) =>
           new Date(a.proxima_data as string).getTime() -
           new Date(b.proxima_data as string).getTime(),
       );
-  }, [healthRecords, todayKey]);
+  }, [healthRecords]);
 
   const overdueRecords = useMemo(() => {
     return healthRecords
@@ -454,7 +467,7 @@ export default function DashboardScreen() {
       >
         <View style={styles.greetingRow}>
           <Text style={styles.greeting}>
-            Olá, {userName || "Tutor"}! <Text style={styles.wave}>👋🏻</Text>
+            Olá, {userName || "Tutor"}! <Text style={styles.wave}></Text>
           </Text>
         </View>
 
@@ -826,7 +839,13 @@ export default function DashboardScreen() {
 
         <View style={styles.recordsCard}>
           <View style={styles.recordsHeader}>
-            <Text style={styles.recordsTitle}>Últimos Registos</Text>
+            <View>
+              <Text style={styles.recordsTitle}>Últimos Registos</Text>
+              <Text style={styles.recordsSubtitle}>
+                Histórico recente de saúde
+              </Text>
+            </View>
+
             <Pressable onPress={() => router.push("/saude")}>
               <Text style={styles.viewAll}>Ver todos</Text>
             </Pressable>
@@ -836,7 +855,7 @@ export default function DashboardScreen() {
             <Text style={styles.emptyText}>Ainda não existem registos.</Text>
           ) : (
             recentRecords.map((record) => (
-              <View key={record.id_registo_saude} style={styles.recordItem}>
+              <View key={record.id_registo_saude} style={styles.recordItemNew}>
                 <View
                   style={[
                     styles.recordIconCircle,
@@ -846,16 +865,46 @@ export default function DashboardScreen() {
                   {getRecordIcon(record.tipo_registo)}
                 </View>
 
-                <View style={{ flex: 1 }}>
+                <View style={styles.recordContentNew}>
                   <Text style={styles.recordTitle}>{record.titulo}</Text>
                   <Text style={styles.recordSubtitle}>
-                    {formatDate(record.proxima_data || record.data_registo)} -{" "}
-                    {getAnimalName(record.id_animal)}
+                    {getAnimalName(record.id_animal)} ·{" "}
+                    {formatDate(record.proxima_data || record.data_registo)}
                   </Text>
                 </View>
               </View>
             ))
           )}
+        </View>
+
+        <View style={styles.adoptionCard}>
+          <View style={styles.adoptionTopRow}>
+            <View style={styles.adoptionIconBox}>
+              <Ionicons name="paw" size={24} color="#0F9D92" />
+            </View>
+
+            <View style={styles.adoptionBadge}>
+              <Text style={styles.adoptionBadgeText}>Adoção</Text>
+            </View>
+          </View>
+
+          <Text style={styles.adoptionTitle}>À procura de um novo amigo?</Text>
+
+          <Text style={styles.adoptionDescription}>
+            Conheça associações próximas e ajude um animal a encontrar uma nova
+            casa.
+          </Text>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.adoptionButton,
+              pressed && styles.adoptionButtonPressed,
+            ]}
+            onPress={() => router.push("/adocao")}
+          >
+            <Text style={styles.adoptionButtonText}>Ver associações</Text>
+            <Ionicons name="arrow-forward" size={17} color="#0F9D92" />
+          </Pressable>
         </View>
       </ScrollView>
     </View>
@@ -1159,38 +1208,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#0F172A",
   },
-  recordsCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 18,
-  },
-  recordsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 18,
-  },
-  recordsTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
-  viewAll: { fontSize: 14, color: "#0F9D92", fontWeight: "700" },
+
   emptyText: { fontSize: 14, color: "#64748B" },
   recordItem: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
-  recordIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-  },
-  recordTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0F172A",
-    marginBottom: 2,
-  },
-  recordSubtitle: { fontSize: 13, color: "#94A3B8" },
+
   chartDropdownWrapper: { position: "relative", zIndex: 10 },
   chartDropdownMenu: {
     position: "absolute",
@@ -1230,5 +1251,150 @@ const styles = StyleSheet.create({
   walkButtonPressed: {
     backgroundColor: "#d3fae8",
     transform: [{ scale: 0.99 }],
+  },
+
+  adoptionCard: {
+    marginTop: 2,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: "#BCE7DF",
+  },
+
+  adoptionTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+
+  adoptionIconBox: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: "#E8FFF7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  adoptionBadge: {
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+
+  adoptionBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#56c77f",
+  },
+
+  adoptionTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 8,
+  },
+
+  adoptionDescription: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#64748B",
+    marginBottom: 18,
+  },
+
+  adoptionButton: {
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#E8FFF7",
+    borderWidth: 1,
+    borderColor: "#BCE7DF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  adoptionButtonText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0F9D92",
+  },
+
+  adoptionButtonPressed: {
+    backgroundColor: "rgb(229, 250, 248)",
+    transform: [{ scale: 0.99 }],
+  },
+
+  recordsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 18,
+    marginBottom: 22,
+  },
+
+  recordsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 16,
+  },
+
+  recordsTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+
+  recordsSubtitle: {
+    fontSize: 13,
+    color: "#94A3B8",
+  },
+
+  viewAll: {
+    fontSize: 14,
+    color: "#0F9D92",
+    fontWeight: "800",
+    marginTop: 4,
+  },
+
+  recordItemNew: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+
+  recordContentNew: {
+    flex: 1,
+    marginLeft: 14,
+  },
+
+  recordTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+
+  recordSubtitle: {
+    fontSize: 13,
+    color: "#94A3B8",
+  },
+
+  recordIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

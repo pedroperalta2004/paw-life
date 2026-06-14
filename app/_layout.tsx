@@ -1,12 +1,10 @@
 import {
   Ionicons,
-  MaterialIcons,
   MaterialCommunityIcons,
   Feather,
   Octicons,
 } from "@expo/vector-icons";
-import { Drawer } from "expo-router/drawer";
-import { DrawerContentScrollView } from "@react-navigation/drawer";
+import { Tabs } from "expo-router";
 import {
   Pressable,
   View,
@@ -20,7 +18,7 @@ import {
 } from "react-native";
 import { useFonts, Pacifico_400Regular } from "@expo-google-fonts/pacifico";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import { supabase } from "../src/lib/supabase";
 
 const ACTIVE_GREEN = "#06afa1";
@@ -31,6 +29,18 @@ const PUBLIC_ROUTES = [
   "registar",
   "esqueceu_password",
   "reset_password",
+];
+
+const HIDDEN_TAB_ROUTES = [
+  "index",
+  "login",
+  "registar",
+  "esqueceu_password",
+  "reset_password",
+  "animal_form",
+  "saude_form",
+  "alimentacao_form",
+  "historico_peso",
 ];
 
 type AlertItem = {
@@ -99,195 +109,10 @@ function getEventLabel(type: string) {
   return "Evento próximo";
 }
 
-function MenuItem({
-  label,
-  route,
-  currentRoute,
-  onPress,
-  icon,
-}: {
-  label: string;
-  route: string;
-  currentRoute: string;
-  onPress: () => void;
-  icon: React.ReactNode;
-}) {
-  const isActive = currentRoute === route;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.item, isActive && styles.activeItem]}
-    >
-      <View style={styles.itemContent}>
-        <View style={styles.iconWrap}>{icon}</View>
-        <Text style={[styles.label, isActive && styles.activeLabel]}>
-          {label}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function CustomDrawerContent(props: any) {
-  const currentRoute = props.state.routes[props.state.index]?.name ?? "";
-  const { onLogoutClear } = props;
-
-  const handleLogout = async () => {
-    try {
-      onLogoutClear?.();
-
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        console.log("Erro ao terminar sessão:", error.message);
-        return;
-      }
-
-      router.replace("/");
-    } catch (error) {
-      console.log("Erro inesperado ao terminar sessão:", error);
-    }
-  };
-
-  return (
-    <DrawerContentScrollView
-      {...props}
-      contentContainerStyle={styles.drawerContainer}
-      scrollEnabled={false}
-    >
-      <View>
-        <View style={styles.header}>
-          <View style={styles.logoBox}>
-            <Image
-              source={require("../assets/images/pawlife_logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-
-          <Text style={styles.appName}>PawLife</Text>
-        </View>
-
-        <View style={styles.separator} />
-
-        <MenuItem
-          label="Dashboard"
-          route="dashboard"
-          currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("dashboard")}
-          icon={
-            <Octicons
-              name="apps"
-              size={17}
-              color={currentRoute === "dashboard" ? ACTIVE_GREEN : "#64748B"}
-            />
-          }
-        />
-
-        <MenuItem
-          label="Os Meus Animais"
-          route="animais"
-          currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("animais")}
-          icon={
-            <Ionicons
-              name="paw-outline"
-              size={17}
-              color={currentRoute === "animais" ? ACTIVE_GREEN : "#64748B"}
-            />
-          }
-        />
-
-        <MenuItem
-          label="Registos de Saúde"
-          route="saude"
-          currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("saude")}
-          icon={
-            <MaterialCommunityIcons
-              name="heart-plus-outline"
-              size={17}
-              color={currentRoute === "saude" ? ACTIVE_GREEN : "#64748B"}
-            />
-          }
-        />
-
-        <MenuItem
-          label="Calendário"
-          route="calendario"
-          currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("calendario")}
-          icon={
-            <Ionicons
-              name="calendar-outline"
-              size={17}
-              color={currentRoute === "calendario" ? ACTIVE_GREEN : "#64748B"}
-            />
-          }
-        />
-
-        <MenuItem
-          label="Atividades"
-          route="atividade"
-          currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("atividade")}
-          icon={
-            <Ionicons
-              name="pulse-outline"
-              size={17}
-              color={currentRoute === "atividade" ? ACTIVE_GREEN : "#64748B"}
-            />
-          }
-        />
-
-        <MenuItem
-          label="Stock de Alimentação"
-          route="alimentacao"
-          currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("alimentacao")}
-          icon={
-            <Feather
-              name="package"
-              size={17}
-              color={currentRoute === "alimentacao" ? ACTIVE_GREEN : "#64748B"}
-            />
-          }
-        />
-
-        <MenuItem
-          label="Associações de Adoção"
-          route="adocao"
-          currentRoute={currentRoute}
-          onPress={() => props.navigation.navigate("adocao")}
-          icon={
-            <MaterialCommunityIcons
-              name="handshake-outline"
-              size={17}
-              color={currentRoute === "adocao" ? ACTIVE_GREEN : "#64748B"}
-            />
-          }
-        />
-      </View>
-
-      <View>
-        <View style={styles.separator} />
-
-        <Pressable onPress={handleLogout} style={styles.footerItem}>
-          <View style={styles.itemContent}>
-            <View style={styles.iconWrap}>
-              <MaterialIcons name="logout" size={17} color="#64748B" />
-            </View>
-
-            <Text style={styles.footerLabel}>Terminar Sessão</Text>
-          </View>
-        </Pressable>
-      </View>
-    </DrawerContentScrollView>
-  );
-}
-
 export default function RootLayout() {
+  const pathname = usePathname();
+  const isProfileActive = pathname === "/perfil";
+
   const [fontsLoaded] = useFonts({
     Pacifico_400Regular,
   });
@@ -339,12 +164,6 @@ export default function RootLayout() {
     }
   }, []);
 
-  const clearUserState = () => {
-    setFullName("");
-    setProfilePhotoUrl(null);
-    setImportantAlerts([]);
-  };
-
   const loadImportantAlerts = useCallback(async () => {
     try {
       setLoadingAlerts(true);
@@ -378,7 +197,6 @@ export default function RootLayout() {
       };
 
       const todayKey = new Date().toISOString().split("T")[0];
-
       const alerts: AlertItem[] = [];
 
       const { data: foodData } = await supabase
@@ -419,7 +237,17 @@ export default function RootLayout() {
         .order("proxima_data", { ascending: true });
 
       (healthData ?? []).forEach((record: any) => {
-        if (String(record.proxima_data) >= todayKey) {
+        const targetDate = new Date(record.proxima_data);
+        const today = new Date();
+
+        today.setHours(0, 0, 0, 0);
+        targetDate.setHours(0, 0, 0, 0);
+
+        const diffDays = Math.round(
+          (targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        if (diffDays >= 0 && diffDays <= 7) {
           alerts.push({
             id: `health-${record.id_registo_saude}`,
             title: getEventLabel(record.tipo_registo),
@@ -430,7 +258,7 @@ export default function RootLayout() {
             color: "#0F9D92",
             backgroundColor: "#DBF5F1",
           });
-        } else {
+        } else if (diffDays < 0) {
           alerts.push({
             id: `overdue-${record.id_registo_saude}`,
             title: "Registo em atraso",
@@ -549,13 +377,87 @@ export default function RootLayout() {
     return null;
   }
 
+  const commonHeaderOptions = {
+    headerShown: true,
+    headerTitleAlign: "left" as const,
+    headerStyle: {
+      backgroundColor: "#FFFFFF",
+      borderBottomWidth: 1,
+      borderBottomColor: "#E5E7EB",
+    },
+    headerShadowVisible: false,
+    headerTitle: () => (
+      <View style={styles.topBarBrand}>
+        <View style={styles.topBarLogoBox}>
+          <Image
+            source={require("../assets/images/pawlife_logo.png")}
+            style={styles.topBarLogoImage}
+            resizeMode="contain"
+          />
+        </View>
+
+        <Text style={styles.topBarAppName}>PawLife</Text>
+      </View>
+    ),
+    headerRight: () => (
+      <View style={styles.headerRightWrap}>
+        <Pressable
+          style={styles.notificationButton}
+          onPress={() => {
+            setShowAlertsModal(true);
+            setTimeout(() => {
+              loadImportantAlerts();
+            }, 300);
+          }}
+        >
+          <Ionicons name="notifications-outline" size={20} color="#64748B" />
+          {hasImportantAlerts && <View style={styles.notificationDot} />}
+        </Pressable>
+
+        <Pressable
+          onPress={async () => {
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
+
+            if (!session) {
+              router.replace("/");
+              return;
+            }
+
+            router.push("/perfil");
+          }}
+        >
+          <View
+            style={[
+              styles.profileButtonRing,
+              isProfileActive && styles.profileButtonRingActive,
+            ]}
+          >
+            <View style={styles.profileButton}>
+              {loadingProfile ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : resolvedPhoto ? (
+                <Image
+                  key={resolvedPhoto}
+                  source={{ uri: resolvedPhoto }}
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.profileInitials}>{initials}</Text>
+              )}
+            </View>
+          </View>
+        </Pressable>
+      </View>
+    ),
+  };
+
   return (
     <>
-      <Drawer
+      <Tabs
         initialRouteName="index"
-        drawerContent={(props) => (
-          <CustomDrawerContent {...props} onLogoutClear={clearUserState} />
-        )}
         screenListeners={({ route }) => ({
           focus: async () => {
             if (PUBLIC_ROUTES.includes(route.name)) {
@@ -578,147 +480,144 @@ export default function RootLayout() {
             await loadImportantAlerts();
           },
         })}
-        screenOptions={({ navigation }) => ({
-          headerShown: true,
-          overlayColor: "rgba(0,0,0,0.25)",
-          drawerStyle: {
-            width: 270,
-            borderTopRightRadius: 28,
-            borderBottomRightRadius: 28,
+        screenOptions={{
+          ...commonHeaderOptions,
+          tabBarActiveTintColor: ACTIVE_GREEN,
+          tabBarInactiveTintColor: "#94A3B8",
+          tabBarShowLabel: false,
+          tabBarStyle: {
+            height: 66,
+            paddingTop: 8,
+            paddingBottom: 10,
             backgroundColor: "#FFFFFF",
+            borderTopWidth: 1,
+            borderTopColor: "#E5E7EB",
           },
-          sceneStyle: {
-            backgroundColor: "#F8FAFC",
+          tabBarItemStyle: {
+            paddingVertical: 4,
           },
-          headerStyle: {
-            backgroundColor: "#FFFFFF",
-            borderBottomWidth: 1,
-            borderBottomColor: "#E5E7EB",
-          },
-          headerShadowVisible: false,
+        }}
+      >
+        <Tabs.Screen
+          name="dashboard"
+          options={{
+            title: "",
+            tabBarIcon: ({ color, focused }) => (
+              <Octicons
+                name={focused ? "apps" : "apps"}
+                size={24}
+                color={color}
+              />
+            ),
+          }}
+        />
 
-          headerLeft: () => (
-            <Pressable
-              onPress={async () => {
-                const {
-                  data: { session },
-                } = await supabase.auth.getSession();
+        <Tabs.Screen
+          name="saude"
+          options={{
+            title: "",
+            tabBarIcon: ({ color }) => (
+              <MaterialCommunityIcons
+                name="heart-plus-outline"
+                size={27}
+                color={color}
+              />
+            ),
+          }}
+        />
 
-                if (!session) {
-                  router.replace("/");
-                  return;
-                }
-
-                navigation.openDrawer();
-              }}
-              style={styles.headerLeftButton}
-            >
-              <MaterialIcons name="menu" size={22} color="#64748B" />
-            </Pressable>
-          ),
-
-          headerTitle: () => (
-            <View style={styles.topBarBrand}>
-              <View style={styles.topBarLogoBox}>
-                <Image
-                  source={require("../assets/images/pawlife_logo.png")}
-                  style={styles.topBarLogoImage}
-                  resizeMode="contain"
-                />
-              </View>
-
-              <Text style={styles.topBarAppName}>PawLife</Text>
-            </View>
-          ),
-
-          headerRight: () => (
-            <View style={styles.headerRightWrap}>
-              <Pressable
-                style={styles.notificationButton}
-                onPress={() => {
-                  setShowAlertsModal(true);
-                  setTimeout(() => {
-                    loadImportantAlerts();
-                  }, 300);
+        <Tabs.Screen
+          name="animais"
+          options={{
+            title: "",
+            tabBarIcon: ({ focused }) => (
+              <View
+                style={{
+                  width: 55,
+                  height: 55,
+                  borderRadius: 35,
+                  backgroundColor: focused ? "#f0fdfa" : "#FFFFFF",
+                  borderWidth: 3,
+                  borderColor: focused ? "#06afa1" : "#94A3B8",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: 25,
+                  shadowColor: "#000",
+                  shadowOpacity: 0.2,
+                  shadowRadius: 6,
+                  elevation: 3,
                 }}
               >
                 <Ionicons
-                  name="notifications-outline"
-                  size={20}
-                  color="#64748B"
+                  name="paw"
+                  size={32}
+                  color={focused ? "#06afa1" : "#94A3B8"}
                 />
-
-                {hasImportantAlerts && <View style={styles.notificationDot} />}
-              </Pressable>
-
-              <Pressable
-                style={styles.profileButton}
-                onPress={async () => {
-                  const {
-                    data: { session },
-                  } = await supabase.auth.getSession();
-
-                  if (!session) {
-                    router.replace("/");
-                    return;
-                  }
-
-                  navigation.navigate("profile");
-                }}
-              >
-                {loadingProfile ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : resolvedPhoto ? (
-                  <Image
-                    key={resolvedPhoto}
-                    source={{ uri: resolvedPhoto }}
-                    style={styles.profileImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Text style={styles.profileInitials}>{initials}</Text>
-                )}
-              </Pressable>
-            </View>
-          ),
-
-          drawerType: "front",
-        })}
-      >
-        <Drawer.Screen name="dashboard" options={{ title: "" }} />
-        <Drawer.Screen name="animais" options={{ title: "" }} />
-        <Drawer.Screen name="alimentacao" options={{ title: "" }} />
-        <Drawer.Screen name="atividade" options={{ title: "" }} />
-        <Drawer.Screen name="adocao" options={{ title: "" }} />
-        <Drawer.Screen name="profile" options={{ title: "" }} />
-        <Drawer.Screen name="saude" options={{ title: "" }} />
-        <Drawer.Screen name="calendario" options={{ title: "" }} />
-
-        <Drawer.Screen
-          name="index"
-          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+              </View>
+            ),
+          }}
         />
 
-        <Drawer.Screen
-          name="login"
-          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        <Tabs.Screen
+          name="alimentacao"
+          options={{
+            title: "",
+            tabBarIcon: ({ color }) => (
+              <Feather name="package" size={24} color={color} />
+            ),
+          }}
         />
 
-        <Drawer.Screen
-          name="registar"
-          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        <Tabs.Screen
+          name="atividade"
+          options={{
+            title: "Atividade",
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons
+                name={focused ? "pulse" : "pulse-outline"}
+                size={24}
+                color={color}
+              />
+            ),
+          }}
         />
 
-        <Drawer.Screen
-          name="esqueceu_password"
-          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        <Tabs.Screen
+          name="perfil"
+          options={{
+            href: null,
+          }}
         />
 
-        <Drawer.Screen
-          name="reset_password"
-          options={{ drawerItemStyle: { display: "none" }, headerShown: false }}
+        <Tabs.Screen
+          name="adocao"
+          options={{
+            href: null,
+            title: "Adoção",
+          }}
         />
-      </Drawer>
+
+        <Tabs.Screen
+          name="calendario"
+          options={{
+            href: null,
+            title: "",
+          }}
+        />
+
+        {HIDDEN_TAB_ROUTES.map((routeName) => (
+          <Tabs.Screen
+            key={routeName}
+            name={routeName}
+            options={{
+              href: null,
+              title: "",
+              headerShown: PUBLIC_ROUTES.includes(routeName) ? false : true,
+              tabBarStyle: { display: "none" },
+            }}
+          />
+        ))}
+      </Tabs>
 
       <Modal visible={showAlertsModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
@@ -811,119 +710,6 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  drawerContainer: {
-    flex: 1,
-    justifyContent: "space-between",
-    paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
-  },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 18,
-  },
-
-  logoBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: "#14B8A6",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-
-  logoImage: {
-    width: 24,
-    height: 24,
-  },
-
-  appName: {
-    fontSize: 22,
-    fontFamily: "Pacifico_400Regular",
-    color: "#0F172A",
-  },
-
-  separator: {
-    height: 1,
-    backgroundColor: "#E5E7EB",
-    marginHorizontal: 20,
-    marginBottom: 12,
-  },
-
-  item: {
-    marginHorizontal: 18,
-    borderRadius: 11,
-    marginBottom: 4,
-    backgroundColor: "transparent",
-    minHeight: 42,
-    justifyContent: "center",
-  },
-
-  itemContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-
-  iconWrap: {
-    width: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-
-  activeItem: {
-    backgroundColor: "#f2fcf7",
-    borderWidth: 1,
-    borderColor: "#d2efe9",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
-  },
-
-  label: {
-    fontSize: 14,
-    color: "#7c8a9e",
-    lineHeight: 20,
-    flexShrink: 1,
-  },
-
-  activeLabel: {
-    color: ACTIVE_GREEN,
-    fontWeight: "600",
-  },
-
-  footerItem: {
-    marginHorizontal: 18,
-    borderRadius: 14,
-    minHeight: 42,
-    justifyContent: "center",
-  },
-
-  footerLabel: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 20,
-  },
-
-  headerLeftButton: {
-    marginLeft: 16,
-    marginRight: 8,
-  },
-
   topBarBrand: {
     flexDirection: "row",
     alignItems: "center",
@@ -1131,5 +917,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     color: "#FFFFFF",
+  },
+
+  profileButtonRing: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    padding: 3,
+    borderWidth: 2,
+    borderColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  profileButtonRingActive: {
+    borderColor: "#0F9D92",
   },
 });

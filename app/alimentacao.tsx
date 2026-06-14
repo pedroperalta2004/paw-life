@@ -5,8 +5,6 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Modal,
-  TextInput,
   Alert,
   ActivityIndicator,
   Linking,
@@ -14,11 +12,8 @@ import {
   Image,
 } from "react-native";
 import { Ionicons, Feather, MaterialCommunityIcons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system/legacy";
-import { decode } from "base64-arraybuffer";
 import { supabase } from "../src/lib/supabase";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 const BUCKET_NAME = "food-images";
 
@@ -45,23 +40,10 @@ export default function FoodScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [showModal, setShowModal] = useState(false);
-  const [editingFood, setEditingFood] = useState<FoodPlan | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const [formAnimalId, setFormAnimalId] = useState("");
-  const [formFoodName, setFormFoodName] = useState("");
-  const [formStockAtual, setFormStockAtual] = useState("");
-  const [formStockTotal, setFormStockTotal] = useState("");
-  const [formPorcaoDiaria, setFormPorcaoDiaria] = useState("");
-  const [formLinkCompra, setFormLinkCompra] = useState("");
-  const [formFoodImage, setFormFoodImage] = useState<string | null>(null);
-
   useFocusEffect(
     useCallback(() => {
       setAnimals([]);
       setFoods([]);
-      setFormAnimalId("");
       setLoading(true);
 
       loadData();
@@ -106,10 +88,6 @@ export default function FoodScreen() {
 
       setAnimals(animalsData ?? []);
       setFoods(foodsData ?? []);
-
-      if ((animalsData ?? []).length > 0) {
-        setFormAnimalId(animalsData![0].id_animal);
-      }
     } catch (error: any) {
       Alert.alert(
         "Erro",
@@ -126,18 +104,7 @@ export default function FoodScreen() {
     setRefreshing(false);
   };
 
-  const resetForm = () => {
-    setEditingFood(null);
-    setFormAnimalId(animals[0]?.id_animal ?? "");
-    setFormFoodName("");
-    setFormStockAtual("");
-    setFormStockTotal("");
-    setFormPorcaoDiaria("");
-    setFormLinkCompra("");
-    setFormFoodImage(null);
-  };
-
-  const openCreateModal = () => {
+  const openCreateForm = () => {
     if (animals.length === 0) {
       Alert.alert(
         "Sem animais",
@@ -146,20 +113,21 @@ export default function FoodScreen() {
       return;
     }
 
-    resetForm();
-    setShowModal(true);
+    router.push({
+      pathname: "/alimentacao_form",
+      params: { mode: "create", t: Date.now().toString() },
+    });
   };
 
-  const openEditModal = (food: FoodPlan) => {
-    setEditingFood(food);
-    setFormAnimalId(food.id_animal);
-    setFormFoodName(food.nome_racao);
-    setFormStockAtual(String(food.stock_atual));
-    setFormStockTotal(String(food.stock_total));
-    setFormPorcaoDiaria(String(food.porcao_diaria));
-    setFormLinkCompra(food.link_compra ?? "");
-    setFormFoodImage(food.foto_url ?? null);
-    setShowModal(true);
+  const openEditForm = (food: FoodPlan) => {
+    router.push({
+      pathname: "/alimentacao_form",
+      params: {
+        id: food.id_alimentacao,
+        mode: "edit",
+        t: Date.now().toString(),
+      },
+    });
   };
 
   const getAnimalName = (id: string) => {
@@ -188,59 +156,6 @@ export default function FoodScreen() {
     return `https://${url.trim()}`;
   };
 
-  const pickImageFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert(
-        "Permissão necessária",
-        "É necessário permitir acesso à galeria.",
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [4, 3],
-    });
-
-    if (!result.canceled) {
-      setFormFoodImage(result.assets[0].uri);
-    }
-  };
-
-  const takePhoto = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert(
-        "Permissão necessária",
-        "É necessário permitir acesso à câmara.",
-      );
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [4, 3],
-    });
-
-    if (!result.canceled) {
-      setFormFoodImage(result.assets[0].uri);
-    }
-  };
-
-  const openPhotoMenu = () => {
-    Alert.alert("Foto da Ração", "Escolha uma opção", [
-      { text: "Tirar Foto", onPress: takePhoto },
-      { text: "Escolher da Galeria", onPress: pickImageFromGallery },
-      { text: "Cancelar", style: "cancel" },
-    ]);
-  };
-
   const getStoragePathFromPublicUrl = (url: string | null) => {
     if (!url) return null;
 
@@ -261,41 +176,6 @@ export default function FoodScreen() {
     if (error) {
       console.log("Erro ao apagar imagem da ração:", error.message);
     }
-  };
-
-  const uploadFoodImage = async (
-    imageUri: string,
-    userId: string,
-    foodId: string,
-  ) => {
-    const fileExt = imageUri.split(".").pop()?.toLowerCase() || "jpg";
-    const filePath = `${userId}/${foodId}-${Date.now()}.${fileExt}`;
-
-    const base64 = await FileSystem.readAsStringAsync(imageUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    const arrayBuffer = decode(base64);
-
-    const contentType =
-      fileExt === "png"
-        ? "image/png"
-        : fileExt === "webp"
-          ? "image/webp"
-          : "image/jpeg";
-
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, arrayBuffer, {
-        contentType,
-        upsert: true,
-      });
-
-    if (uploadError) throw uploadError;
-
-    const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
-
-    return data.publicUrl;
   };
 
   const handleFeedPet = async (food: FoodPlan) => {
@@ -351,160 +231,6 @@ export default function FoodScreen() {
       );
     } catch (error: any) {
       Alert.alert("Erro", error.message || "Não foi possível repor o stock.");
-    }
-  };
-
-  const handleSaveFood = async () => {
-    if (
-      !formAnimalId ||
-      !formFoodName.trim() ||
-      !formStockAtual.trim() ||
-      !formStockTotal.trim() ||
-      !formPorcaoDiaria.trim()
-    ) {
-      Alert.alert(
-        "Campos obrigatórios",
-        "Preencha o animal, nome da ração, stock atual, stock total e porção diária.",
-      );
-      return;
-    }
-
-    const stockAtual = Number(formStockAtual.replace(",", "."));
-    const stockTotal = Number(formStockTotal.replace(",", "."));
-    const porcaoDiaria = Number(formPorcaoDiaria.replace(",", "."));
-
-    if (
-      Number.isNaN(stockAtual) ||
-      Number.isNaN(stockTotal) ||
-      Number.isNaN(porcaoDiaria)
-    ) {
-      Alert.alert(
-        "Valores inválidos",
-        "Os campos numéricos devem conter números.",
-      );
-      return;
-    }
-
-    if (stockAtual < 0 || stockTotal <= 0 || porcaoDiaria <= 0) {
-      Alert.alert(
-        "Valores inválidos",
-        "O stock total e a porção diária devem ser superiores a 0.",
-      );
-      return;
-    }
-
-    if (stockTotal < stockAtual) {
-      Alert.alert(
-        "Stock inválido",
-        "O stock total não pode ser inferior ao stock atual.",
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError) throw userError;
-      if (!user) throw new Error("Utilizador não autenticado.");
-
-      const pickedNewLocalImage =
-        formFoodImage &&
-        (formFoodImage.startsWith("file://") ||
-          formFoodImage.startsWith("content://"));
-
-      const basePayload = {
-        id_animal: formAnimalId,
-        nome_racao: formFoodName.trim(),
-        stock_atual: stockAtual,
-        stock_total: stockTotal,
-        porcao_diaria: porcaoDiaria,
-        link_compra: validateUrl(formLinkCompra),
-      };
-
-      if (editingFood) {
-        let finalPhotoUrl = editingFood.foto_url;
-
-        if (pickedNewLocalImage) {
-          if (editingFood.foto_url) {
-            await deleteFoodImageFromStorage(editingFood.foto_url);
-          }
-
-          finalPhotoUrl = await uploadFoodImage(
-            formFoodImage,
-            user.id,
-            editingFood.id_alimentacao,
-          );
-        }
-
-        const { data, error } = await supabase
-          .from("alimentacao")
-          .update({
-            ...basePayload,
-            foto_url: finalPhotoUrl,
-          })
-          .eq("id_alimentacao", editingFood.id_alimentacao)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setFoods((prev) =>
-          prev.map((item) =>
-            item.id_alimentacao === editingFood.id_alimentacao ? data : item,
-          ),
-        );
-
-        Alert.alert("Sucesso", "Plano de alimentação atualizado.");
-      } else {
-        const { data: insertedFood, error: insertError } = await supabase
-          .from("alimentacao")
-          .insert([
-            {
-              ...basePayload,
-              foto_url: null,
-            },
-          ])
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-
-        let finalFood = insertedFood;
-
-        if (pickedNewLocalImage) {
-          const publicUrl = await uploadFoodImage(
-            formFoodImage,
-            user.id,
-            insertedFood.id_alimentacao,
-          );
-
-          const { data: updatedFood, error: updatePhotoError } = await supabase
-            .from("alimentacao")
-            .update({ foto_url: publicUrl })
-            .eq("id_alimentacao", insertedFood.id_alimentacao)
-            .select()
-            .single();
-
-          if (updatePhotoError) throw updatePhotoError;
-
-          finalFood = updatedFood;
-        }
-
-        setFoods((prev) => [finalFood, ...prev]);
-        Alert.alert("Sucesso", "Plano de alimentação criado.");
-      }
-
-      setShowModal(false);
-      resetForm();
-    } catch (error: any) {
-      Alert.alert("Erro", error.message || "Não foi possível guardar o plano.");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -596,7 +322,7 @@ export default function FoodScreen() {
             styles.addButton,
             pressed && styles.greenButtonPressed,
           ]}
-          onPress={openCreateModal}
+          onPress={openCreateForm}
         >
           <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={styles.addButtonText}>Novo Saco de Ração</Text>
@@ -607,11 +333,16 @@ export default function FoodScreen() {
             <ActivityIndicator size="large" color="#0F9D92" />
           </View>
         ) : foods.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>Sem planos de alimentação</Text>
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIcon}>
+              <Feather name="package" size={34} color="#0F9D92" />
+            </View>
+
+            <Text style={styles.emptyTitle}>Ainda não tem ração registada</Text>
+
             <Text style={styles.emptyText}>
-              Ainda não criou nenhum saco de ração. Toque em “Novo Saco de
-              Ração” para começar.
+              Registe o primeiro saco de ração para acompanhar o stock e receber
+              alertas antes de acabar.
             </Text>
           </View>
         ) : (
@@ -775,7 +506,7 @@ export default function FoodScreen() {
                         styles.iconButton,
                         pressed && styles.iconButtonPressed,
                       ]}
-                      onPress={() => openEditModal(item)}
+                      onPress={() => openEditForm(item)}
                     >
                       <Feather name="edit-2" size={16} color="#475569" />
                     </Pressable>
@@ -806,163 +537,6 @@ export default function FoodScreen() {
           })
         )}
       </ScrollView>
-
-      <Modal visible={showModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingFood ? "Editar Plano" : "Novo Saco de Ração"}
-                </Text>
-
-                <Pressable
-                  onPress={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                >
-                  <Ionicons name="close" size={22} color="#94A3B8" />
-                </Pressable>
-              </View>
-
-              <Text style={styles.fieldLabel}>Foto da Ração</Text>
-
-              <Pressable style={styles.photoPicker} onPress={openPhotoMenu}>
-                {formFoodImage ? (
-                  <Image
-                    source={{ uri: formFoodImage }}
-                    style={styles.photoPreview}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <>
-                    <MaterialCommunityIcons
-                      name="package-variant-closed"
-                      size={34}
-                      color="#94A3B8"
-                    />
-                    <Text style={styles.photoPickerText}>
-                      Adicionar foto do saco
-                    </Text>
-                  </>
-                )}
-
-                <View style={styles.photoCameraBadge}>
-                  <Ionicons name="camera-outline" size={15} color="#FFFFFF" />
-                </View>
-              </Pressable>
-
-              <Text style={styles.fieldLabel}>Animal</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {animals.map((animal) => (
-                  <Pressable
-                    key={animal.id_animal}
-                    style={[
-                      styles.optionChip,
-                      formAnimalId === animal.id_animal &&
-                        styles.optionChipActive,
-                    ]}
-                    onPress={() => setFormAnimalId(animal.id_animal)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionChipText,
-                        formAnimalId === animal.id_animal &&
-                          styles.optionChipTextActive,
-                      ]}
-                    >
-                      {animal.nome}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              <Text style={styles.fieldLabel}>Nome da Ração</Text>
-              <TextInput
-                style={styles.input}
-                value={formFoodName}
-                onChangeText={setFormFoodName}
-                placeholder="Ex: Royal Canin Medium"
-                placeholderTextColor="#94A3B8"
-              />
-
-              <Text style={styles.fieldLabel}>Stock Atual (kg)</Text>
-              <TextInput
-                style={styles.input}
-                value={formStockAtual}
-                onChangeText={setFormStockAtual}
-                placeholder="Ex: 2.1"
-                placeholderTextColor="#94A3B8"
-                keyboardType="decimal-pad"
-              />
-
-              <Text style={styles.fieldLabel}>Stock Total do Saco (kg)</Text>
-              <TextInput
-                style={styles.input}
-                value={formStockTotal}
-                onChangeText={setFormStockTotal}
-                placeholder="Ex: 15"
-                placeholderTextColor="#94A3B8"
-                keyboardType="decimal-pad"
-              />
-
-              <Text style={styles.fieldLabel}>Porção Diária (g)</Text>
-              <TextInput
-                style={styles.input}
-                value={formPorcaoDiaria}
-                onChangeText={setFormPorcaoDiaria}
-                placeholder="Ex: 300"
-                placeholderTextColor="#94A3B8"
-                keyboardType="decimal-pad"
-              />
-
-              <Text style={styles.fieldLabel}>Link de Compra</Text>
-              <TextInput
-                style={styles.input}
-                value={formLinkCompra}
-                onChangeText={setFormLinkCompra}
-                placeholder="Ex: https://www.zooplus.pt/..."
-                placeholderTextColor="#94A3B8"
-                autoCapitalize="none"
-                keyboardType="url"
-              />
-
-              <View style={styles.modalButtons}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.cancelButton,
-                    pressed && styles.whiteButtonPressed,
-                  ]}
-                  onPress={() => {
-                    setShowModal(false);
-                    resetForm();
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </Pressable>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.saveButton,
-                    pressed && styles.greenButtonPressed,
-                  ]}
-                  onPress={handleSaveFood}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.saveButtonText}>
-                      {editingFood ? "Guardar" : "Criar"}
-                    </Text>
-                  )}
-                </Pressable>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1015,27 +589,6 @@ const styles = StyleSheet.create({
   loadingWrapper: {
     paddingVertical: 40,
     alignItems: "center",
-  },
-
-  emptyBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 18,
-  },
-
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 8,
-  },
-
-  emptyText: {
-    fontSize: 14,
-    color: "#64748B",
-    lineHeight: 22,
   },
 
   foodCard: {
@@ -1296,167 +849,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.25)",
-    justifyContent: "center",
-    padding: 18,
-  },
-
-  modalCard: {
-    maxHeight: "90%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 18,
-  },
-
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#0F172A",
-  },
-
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#334155",
-    marginBottom: 8,
-    marginTop: 10,
-  },
-
-  photoPicker: {
-    height: 190,
-    borderRadius: 18,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-    overflow: "hidden",
-    position: "relative",
-  },
-
-  photoPreview: {
-    width: "100%",
-    height: "100%",
-  },
-
-  photoPickerText: {
-    marginTop: 8,
-    fontSize: 13,
-    color: "#64748B",
-    fontWeight: "700",
-  },
-
-  photoCameraBadge: {
-    position: "absolute",
-    right: 12,
-    bottom: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#0F9D92",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-
-  input: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    fontSize: 14,
-    color: "#0F172A",
-  },
-
-  optionChip: {
-    height: 38,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-    marginBottom: 6,
-  },
-
-  optionChipActive: {
-    backgroundColor: "#DBF5F1",
-    borderColor: "#0F9D92",
-  },
-
-  optionChipText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#475569",
-  },
-
-  optionChipTextActive: {
-    color: "#0F9D92",
-  },
-
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 22,
-  },
-
-  cancelButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-
-  cancelButtonText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#334155",
-  },
-
-  saveButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#0F9D92",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 8,
-  },
-
-  saveButtonText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-
   greenButtonPressed: {
     backgroundColor: "#15968b",
-    transform: [{ scale: 0.99 }],
-  },
-
-  whiteButtonPressed: {
-    backgroundColor: "#eff0f0",
     transform: [{ scale: 0.99 }],
   },
 
@@ -1473,5 +867,41 @@ const styles = StyleSheet.create({
   buyButtonPressed: {
     backgroundColor: "#354769",
     transform: [{ scale: 0.99 }],
+  },
+
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#ECFDF5",
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+
+  emptyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 24,
+    alignItems: "center",
+  },
+
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0F172A",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 24,
+    color: "#64748B",
+    textAlign: "center",
+    maxWidth: 280,
   },
 });

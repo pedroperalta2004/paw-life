@@ -1,11 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, useFocusEffect } from "expo-router";
 import React, { useState, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -15,7 +17,6 @@ import {
   BackHandler,
 } from "react-native";
 import { supabase } from "../src/lib/supabase";
-import { useFocusEffect } from "expo-router";
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -23,9 +24,18 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const resetForm = () => {
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setShowPassword(false);
+    setLoading(false);
+  };
 
   const handleRegister = async () => {
     if (!fullName.trim() || !email.trim() || !password.trim()) {
@@ -54,9 +64,7 @@ export default function RegisterScreen() {
         },
       });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       const user = data.user;
 
@@ -64,6 +72,7 @@ export default function RegisterScreen() {
         throw new Error("Não foi possível obter o utilizador após o registo.");
       }
 
+      resetForm();
       setShowSuccessModal(true);
     } catch (error: any) {
       Alert.alert("Erro no registo", error.message || "Ocorreu um erro.");
@@ -74,11 +83,14 @@ export default function RegisterScreen() {
 
   const handleSuccessContinue = () => {
     setShowSuccessModal(false);
+    resetForm();
     router.replace("/login");
   };
 
   useFocusEffect(
     useCallback(() => {
+      resetForm();
+
       const backHandler = BackHandler.addEventListener(
         "hardwareBackPress",
         () => true,
@@ -92,114 +104,127 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.container}>
-        <View style={styles.topSection}>
-          <View style={styles.logoBox}>
-            <Image
-              source={require("../assets/images/pawlife_logo.png")}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-
-          <Text style={styles.appName}>PawLife</Text>
-          <Text style={styles.subtitle}>
-            A plataforma completa para o bem-estar do seu melhor amigo.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Criar nova conta</Text>
-
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Nome completo</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="person-outline"
-                size={18}
-                color="#94A3B8"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="John Doe"
-                placeholderTextColor="#94A3B8"
-                value={fullName}
-                onChangeText={setFullName}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : -50}
+      >
+        <View style={styles.container}>
+          <View style={styles.topSection}>
+            <View style={styles.logoBox}>
+              <Image
+                source={require("../assets/images/pawlife_logo.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
               />
             </View>
+
+            <Text style={styles.appName}>PawLife</Text>
+            <Text style={styles.subtitle}>
+              A plataforma completa para o bem-estar do seu melhor amigo.
+            </Text>
           </View>
 
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="mail-outline"
-                size={18}
-                color="#94A3B8"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="user@exemplo.com"
-                placeholderTextColor="#94A3B8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Criar nova conta</Text>
 
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Palavra-passe</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={18}
-                color="#94A3B8"
-                style={styles.inputIcon}
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="••••••••••••"
-                placeholderTextColor="#94A3B8"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-
-              <Pressable onPress={() => setShowPassword((prev) => !prev)}>
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Nome completo</Text>
+              <View style={styles.inputWrapper}>
                 <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={20}
-                  color="#64748B"
+                  name="person-outline"
+                  size={18}
+                  color="#94A3B8"
+                  style={styles.inputIcon}
                 />
-              </Pressable>
+                <TextInput
+                  style={styles.input}
+                  placeholder="John Doe"
+                  placeholderTextColor="#94A3B8"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  editable={!loading}
+                />
+              </View>
             </View>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Email</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="mail-outline"
+                  size={18}
+                  color="#94A3B8"
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="user@exemplo.com"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!loading}
+                />
+              </View>
+            </View>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Palavra-passe</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={18}
+                  color="#94A3B8"
+                  style={styles.inputIcon}
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••••••"
+                  placeholderTextColor="#94A3B8"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!loading}
+                />
+
+                <Pressable
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  disabled={loading}
+                  hitSlop={10}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#64748B"
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            <Pressable
+              style={[styles.registerButton, loading && styles.buttonDisabled]}
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.registerButtonText}>Registar</Text>
+              )}
+            </Pressable>
           </View>
 
-          <Pressable
-            style={[styles.registerButton, loading && styles.buttonDisabled]}
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.registerButtonText}>Registar</Text>
-            )}
-          </Pressable>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Já tem conta? </Text>
+            <Pressable onPress={() => router.push("/login")}>
+              <Text style={styles.footerLink}>Iniciar sessão</Text>
+            </Pressable>
+          </View>
         </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Já tem conta? </Text>
-          <Pressable onPress={() => router.push("/login")}>
-            <Text style={styles.footerLink}>Iniciar sessão</Text>
-          </Pressable>
-        </View>
-      </View>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={showSuccessModal}
@@ -238,10 +263,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#F3F4F6",
   },
 
+  keyboardView: {
+    flex: 1,
+  },
+
   container: {
     flex: 1,
     justifyContent: "center",
     paddingHorizontal: 24,
+    paddingTop: 90,
+    paddingBottom: 24,
   },
 
   topSection: {

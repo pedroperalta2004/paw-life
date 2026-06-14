@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -18,9 +24,8 @@ import {
   FontAwesome5,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "../src/lib/supabase";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 type Animal = {
   id_animal: string;
@@ -46,7 +51,6 @@ type HealthRecord = {
 };
 
 const HEALTH_TYPES = ["Todos", "Vacina", "Consulta", "Exame", "Medicamento"];
-const STATUS_OPTIONS = ["Concluído", "Pendente"];
 
 function formatDate(dateString: string | null) {
   if (!dateString) return "--";
@@ -58,10 +62,6 @@ function formatDate(dateString: string | null) {
     month: "long",
     year: "numeric",
   });
-}
-
-function formatInputDate(date: Date) {
-  return date.toISOString().split("T")[0];
 }
 
 function formatTime(time: string | null) {
@@ -147,8 +147,20 @@ function getLastLabel(type: string) {
       return "Último Registo";
   }
 }
+const isPastDate = (dateString: string | null) => {
+  if (!dateString) return false;
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const date = new Date(dateString);
+  date.setHours(0, 0, 0, 0);
+
+  return date < today;
+};
 export default function SaudeScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [records, setRecords] = useState<HealthRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,33 +170,18 @@ export default function SaudeScreen() {
   const [searchText, setSearchText] = useState("");
   const [sortOrder, setSortOrder] = useState<"recent" | "oldest">("recent");
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<HealthRecord | null>(
     null,
   );
-  const [editingRecord, setEditingRecord] = useState<HealthRecord | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const [formAnimalId, setFormAnimalId] = useState("");
-  const [formType, setFormType] = useState("Vacina");
-  const [formTitle, setFormTitle] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formDate, setFormDate] = useState("");
-  const [formNextDate, setFormNextDate] = useState("");
-  const [formTime, setFormTime] = useState("");
-  const [formVeterinario, setFormVeterinario] = useState("");
-  const [formLocal, setFormLocal] = useState("");
-  const [formStatus, setFormStatus] = useState("Pendente");
-
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showNextDatePicker, setShowNextDatePicker] = useState(false);
 
   const [visibleCount, setVisibleCount] = useState(5);
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+
       setAnimals([]);
       setRecords([]);
       setSelectedAnimalId("all");
@@ -232,10 +229,6 @@ export default function SaudeScreen() {
 
       setAnimals(animalsData ?? []);
       setRecords(filteredRecords);
-
-      if ((animalsData ?? []).length > 0) {
-        setFormAnimalId(animalsData![0].id_animal);
-      }
     } catch (error: any) {
       Alert.alert(
         "Erro",
@@ -252,20 +245,6 @@ export default function SaudeScreen() {
     setRefreshing(false);
   };
 
-  const resetForm = () => {
-    setEditingRecord(null);
-    setFormAnimalId(animals[0]?.id_animal ?? "");
-    setFormType("Vacina");
-    setFormTitle("");
-    setFormDescription("");
-    setFormDate("");
-    setFormNextDate("");
-    setFormTime("");
-    setFormVeterinario("");
-    setFormLocal("");
-    setFormStatus("Pendente");
-  };
-
   const handleOpenCreate = () => {
     if (animals.length === 0) {
       Alert.alert(
@@ -275,95 +254,23 @@ export default function SaudeScreen() {
       return;
     }
 
-    resetForm();
-    setShowCreateModal(true);
+    router.push({
+      pathname: "/saude_form",
+      params: { mode: "create", t: Date.now().toString() },
+    });
   };
 
   const handleOpenEdit = (record: HealthRecord) => {
-    setEditingRecord(record);
-    setFormAnimalId(record.id_animal);
-    setFormType(normalizeTypeLabel(record.tipo_registo));
-    setFormTitle(record.titulo ?? "");
-    setFormDescription(record.descricao ?? "");
-    setFormDate(record.data_registo ?? "");
-    setFormNextDate(record.proxima_data ?? "");
-    setFormTime(record.hora_registo ? record.hora_registo.slice(0, 5) : "");
-    setFormVeterinario(record.veterinario ?? "");
-    setFormLocal(record.local ?? "");
-    setFormStatus(record.estado ?? "Pendente");
-
     setShowDetailsModal(false);
-    setShowCreateModal(true);
-  };
 
-  const handleSaveRecord = async () => {
-    if (!formAnimalId || !formTitle.trim() || !formDate.trim()) {
-      Alert.alert(
-        "Campos obrigatórios",
-        "Preencha o animal, o título e a data do registo.",
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const payload = {
-        id_animal: formAnimalId,
-        tipo_registo: formType,
-        titulo: formTitle.trim(),
-        descricao: formDescription.trim() || null,
-        data_registo: formDate.trim(),
-        proxima_data: formNextDate.trim() || null,
-        hora_registo: formTime.trim() || null,
-        veterinario: formVeterinario.trim() || null,
-        local: formLocal.trim() || null,
-        estado: formStatus,
-      };
-
-      if (editingRecord) {
-        const { data, error } = await supabase
-          .from("registos_saude")
-          .update(payload)
-          .eq("id_registo_saude", editingRecord.id_registo_saude)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setRecords((prev) =>
-          prev.map((item) =>
-            item.id_registo_saude === editingRecord.id_registo_saude
-              ? data
-              : item,
-          ),
-        );
-
-        setSelectedRecord(data);
-        Alert.alert("Sucesso", "Registo atualizado com sucesso.");
-      } else {
-        const { data, error } = await supabase
-          .from("registos_saude")
-          .insert([payload])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setRecords((prev) => [data, ...prev]);
-        Alert.alert("Sucesso", "Registo de saúde criado com sucesso.");
-      }
-
-      setShowCreateModal(false);
-      resetForm();
-    } catch (error: any) {
-      Alert.alert(
-        "Erro",
-        error.message || "Não foi possível guardar o registo.",
-      );
-    } finally {
-      setSaving(false);
-    }
+    router.push({
+      pathname: "/saude_form",
+      params: {
+        id: record.id_registo_saude,
+        mode: "edit",
+        t: Date.now().toString(),
+      },
+    });
   };
 
   const updateRecordStatus = async (record: HealthRecord, status: string) => {
@@ -494,14 +401,20 @@ export default function SaudeScreen() {
     (r) => normalizeTypeLabel(r.tipo_registo) === "Vacina",
   );
 
-  const completedVaccines = vaccineRecords.filter(
+  const vaccinesToEvaluate = vaccineRecords.filter((r) => {
+    if (!r.proxima_data) return true;
+
+    return isPastDate(r.proxima_data);
+  });
+
+  const completedVaccines = vaccinesToEvaluate.filter(
     (r) => (r.estado ?? "").toLowerCase() === "concluído",
   ).length;
 
   const vaccinePercent =
-    vaccineRecords.length > 0
-      ? Math.round((completedVaccines / vaccineRecords.length) * 100)
-      : 0;
+    vaccinesToEvaluate.length > 0
+      ? Math.round((completedVaccines / vaccinesToEvaluate.length) * 100)
+      : 100;
 
   const upcomingRecord = useMemo(() => {
     const futureRecords = filteredRecords
@@ -642,6 +555,7 @@ export default function SaudeScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -658,33 +572,38 @@ export default function SaudeScreen() {
           Acompanhe vacinas, consultas, exames e medicamentos.
         </Text>
 
-        <Pressable
-          style={[
-            styles.allAnimalsButton,
-            selectedAnimalId === "all" && styles.allAnimalsButtonActive,
-          ]}
-          onPress={() => setSelectedAnimalId("all")}
-        >
-          <Ionicons
-            name="paw"
-            size={16}
-            color={selectedAnimalId === "all" ? "#0F9D92" : "#64748B"}
-          />
-          <Text
-            style={[
-              styles.allAnimalsText,
-              selectedAnimalId === "all" && styles.allAnimalsTextActive,
-            ]}
-          >
-            Todos os animais
-          </Text>
-        </Pressable>
-
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.animalsScroll}
         >
+          <Pressable
+            style={styles.animalAvatarWrapper}
+            onPress={() => setSelectedAnimalId("all")}
+          >
+            <View
+              style={[
+                styles.animalAvatar,
+                selectedAnimalId === "all" && styles.animalAvatarActive,
+              ]}
+            >
+              <Ionicons
+                name="paw"
+                size={26}
+                color={selectedAnimalId === "all" ? "#0F9D92" : "#b5b5b6"}
+              />
+            </View>
+
+            <Text
+              style={[
+                styles.animalAvatarName,
+                selectedAnimalId === "all" && styles.animalAvatarNameActive,
+              ]}
+            >
+              Todos
+            </Text>
+          </Pressable>
+
           {animals.map((animal) => (
             <Pressable
               key={animal.id_animal}
@@ -725,19 +644,6 @@ export default function SaudeScreen() {
         <View style={styles.topButtonsRow}>
           <Pressable
             style={({ pressed }) => [
-              styles.filterButton,
-              pressed && styles.whiteButtonPressed,
-            ]}
-            onPress={() =>
-              setSortOrder((prev) => (prev === "recent" ? "oldest" : "recent"))
-            }
-          >
-            <Feather name="filter" size={18} color="#475569" />
-            <Text style={styles.filterButtonText}>Filtrar</Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
               styles.newRecordButton,
               pressed && styles.ButtonPressed,
             ]}
@@ -775,6 +681,31 @@ export default function SaudeScreen() {
         </ScrollView>
 
         {renderSummaryCards()}
+
+        <Pressable
+          style={({ pressed }) => [
+            styles.calendarShortcutCard,
+            pressed && styles.whiteButtonPressed,
+          ]}
+          onPress={() => router.push("/calendario")}
+        >
+          <View style={styles.calendarShortcutIcon}>
+            <MaterialCommunityIcons
+              name="calendar-clock-outline"
+              size={23}
+              color="#0F9D92"
+            />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.calendarShortcutTitle}>Ver calendário</Text>
+            <Text style={styles.calendarShortcutText}>
+              Consulte todos os eventos de saúde por data.
+            </Text>
+          </View>
+
+          <Ionicons name="chevron-forward" size={20} color="#0F9D92" />
+        </Pressable>
 
         <View style={styles.searchCard}>
           <View style={styles.searchSortRow}>
@@ -949,234 +880,6 @@ export default function SaudeScreen() {
         </View>
       </ScrollView>
 
-      <Modal visible={showCreateModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingRecord
-                    ? "Editar Registo de Saúde"
-                    : "Novo Registo de Saúde"}
-                </Text>
-                <Pressable
-                  onPress={() => {
-                    setShowCreateModal(false);
-                    resetForm();
-                  }}
-                >
-                  <Ionicons name="close" size={22} color="#94A3B8" />
-                </Pressable>
-              </View>
-
-              <Text style={styles.fieldLabel}>Animal</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {animals.map((animal) => (
-                  <Pressable
-                    key={animal.id_animal}
-                    style={[
-                      styles.optionChip,
-                      formAnimalId === animal.id_animal &&
-                        styles.optionChipActive,
-                    ]}
-                    onPress={() => setFormAnimalId(animal.id_animal)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionChipText,
-                        formAnimalId === animal.id_animal &&
-                          styles.optionChipTextActive,
-                      ]}
-                    >
-                      {animal.nome}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              <Text style={styles.fieldLabel}>Tipo de Registo</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                {HEALTH_TYPES.filter((t) => t !== "Todos").map((type) => (
-                  <Pressable
-                    key={type}
-                    style={[
-                      styles.optionChip,
-                      formType === type && styles.optionChipActive,
-                    ]}
-                    onPress={() => setFormType(type)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionChipText,
-                        formType === type && styles.optionChipTextActive,
-                      ]}
-                    >
-                      {type}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              <Text style={styles.fieldLabel}>Título</Text>
-              <TextInput
-                style={styles.input}
-                value={formTitle}
-                onChangeText={setFormTitle}
-                placeholder="Ex: Antirrábica Anual"
-                placeholderTextColor="#94A3B8"
-              />
-
-              <Text style={styles.fieldLabel}>Descrição</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={formDescription}
-                onChangeText={setFormDescription}
-                placeholder="Detalhes do registo"
-                placeholderTextColor="#94A3B8"
-                multiline
-              />
-
-              <Text style={styles.fieldLabel}>Data do Registo</Text>
-              <Pressable
-                style={styles.dateInput}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text
-                  style={formDate ? styles.dateText : styles.datePlaceholder}
-                >
-                  {formDate || "Selecionar data do registo"}
-                </Text>
-                <Ionicons name="calendar-outline" size={18} color="#64748B" />
-              </Pressable>
-
-              {showDatePicker && (
-                <DateTimePicker
-                  value={formDate ? new Date(formDate) : new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowDatePicker(false);
-                    if (selectedDate)
-                      setFormDate(formatInputDate(selectedDate));
-                  }}
-                />
-              )}
-
-              <Text style={styles.fieldLabel}>Data da Marcação</Text>
-              <Pressable
-                style={styles.dateInput}
-                onPress={() => setShowNextDatePicker(true)}
-              >
-                <Text
-                  style={
-                    formNextDate ? styles.dateText : styles.datePlaceholder
-                  }
-                >
-                  {formNextDate || "Selecionar data da marcação"}
-                </Text>
-                <Ionicons name="calendar-outline" size={18} color="#64748B" />
-              </Pressable>
-
-              {showNextDatePicker && (
-                <DateTimePicker
-                  value={formNextDate ? new Date(formNextDate) : new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(event, selectedDate) => {
-                    setShowNextDatePicker(false);
-                    if (selectedDate)
-                      setFormNextDate(formatInputDate(selectedDate));
-                  }}
-                />
-              )}
-
-              <Text style={styles.fieldLabel}>Hora</Text>
-              <TextInput
-                style={styles.input}
-                value={formTime}
-                onChangeText={setFormTime}
-                placeholder="Ex: 10:30"
-                placeholderTextColor="#94A3B8"
-                keyboardType="numbers-and-punctuation"
-              />
-
-              <Text style={styles.fieldLabel}>Veterinário / Médico</Text>
-              <TextInput
-                style={styles.input}
-                value={formVeterinario}
-                onChangeText={setFormVeterinario}
-                placeholder="Ex: Dra. Juliana Mendes"
-                placeholderTextColor="#94A3B8"
-              />
-
-              <Text style={styles.fieldLabel}>Local</Text>
-              <TextInput
-                style={styles.input}
-                value={formLocal}
-                onChangeText={setFormLocal}
-                placeholder="Ex: Clínica PetVida"
-                placeholderTextColor="#94A3B8"
-              />
-
-              <Text style={styles.fieldLabel}>Estado</Text>
-              <View style={styles.statusOptionsRow}>
-                {STATUS_OPTIONS.map((status) => (
-                  <Pressable
-                    key={status}
-                    style={[
-                      styles.optionChip,
-                      formStatus === status && styles.optionChipActive,
-                    ]}
-                    onPress={() => setFormStatus(status)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionChipText,
-                        formStatus === status && styles.optionChipTextActive,
-                      ]}
-                    >
-                      {status}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              <View style={styles.modalButtons}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.cancelButton,
-                    pressed && styles.whiteButtonPressed,
-                  ]}
-                  onPress={() => {
-                    setShowCreateModal(false);
-                    resetForm();
-                  }}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </Pressable>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.saveButton,
-                    pressed && styles.ButtonPressed,
-                  ]}
-                  onPress={handleSaveRecord}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.saveButtonText}>
-                      {editingRecord ? "Guardar Alterações" : "Guardar"}
-                    </Text>
-                  )}
-                </Pressable>
-              </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
       <Modal visible={showDetailsModal} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.detailsModalCard}>
@@ -1291,32 +994,6 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
 
-  allAnimalsButton: {
-    alignSelf: "flex-start",
-    height: 40,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    gap: 8,
-  },
-  allAnimalsButtonActive: {
-    backgroundColor: "#DBF5F1",
-    borderColor: "#0F9D92",
-  },
-  allAnimalsText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#64748B",
-  },
-  allAnimalsTextActive: {
-    color: "#0F9D92",
-  },
-
   animalsScroll: { marginBottom: 18 },
 
   topButtonsRow: {
@@ -1324,22 +1001,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 18,
   },
-  filterButton: {
-    width: "28%",
-    height: 52,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  filterButtonText: { fontSize: 15, fontWeight: "700", color: "#334155" },
+
   newRecordButton: {
-    width: "68%",
-    height: 52,
+    width: "63%",
+    height: 46,
     backgroundColor: "#0F9D92",
     borderRadius: 16,
     flexDirection: "row",
@@ -1347,7 +1012,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  newRecordButtonText: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
+  newRecordButtonText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
 
   tabsScroll: { marginBottom: 18 },
   tabButton: {
@@ -1409,7 +1074,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   searchBox: {
-    width: "58%",
+    width: "55%",
     height: 48,
     borderRadius: 14,
     borderWidth: 1,
@@ -1420,8 +1085,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 14, color: "#0F172A" },
+
   sortButton: {
-    width: "38%",
+    width: "42%",
     height: 48,
     borderRadius: 14,
     borderWidth: 1,
@@ -1569,14 +1235,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 18,
   },
-  modalCard: {
-    maxHeight: "90%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
+
   detailsModalCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 22,
@@ -1591,82 +1250,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   modalTitle: { fontSize: 18, fontWeight: "800", color: "#0F172A" },
-
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#334155",
-    marginBottom: 8,
-    marginTop: 10,
-  },
-  input: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    fontSize: 14,
-    color: "#0F172A",
-  },
-  dateInput: {
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  dateText: { fontSize: 14, color: "#0F172A" },
-  datePlaceholder: { fontSize: 14, color: "#94A3B8" },
-  textArea: { height: 90, textAlignVertical: "top", paddingTop: 14 },
-
-  optionChip: {
-    height: 38,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-    marginBottom: 6,
-  },
-  optionChipActive: { backgroundColor: "#DBF5F1", borderColor: "#0F9D92" },
-  optionChipText: { fontSize: 13, fontWeight: "700", color: "#475569" },
-  optionChipTextActive: { color: "#0F9D92" },
-  statusOptionsRow: { flexDirection: "row", flexWrap: "wrap" },
-
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 22,
-  },
-  cancelButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  cancelButtonText: { fontSize: 14, fontWeight: "800", color: "#334155" },
-  saveButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#0F9D92",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 8,
-  },
-  saveButtonText: { fontSize: 14, fontWeight: "800", color: "#FFFFFF" },
 
   detailTitle: {
     fontSize: 20,
@@ -1723,7 +1306,7 @@ const styles = StyleSheet.create({
   },
 
   whiteButtonPressed: {
-    backgroundColor: "#eff0f0",
+    backgroundColor: "#f6f7f7",
     transform: [{ scale: 0.99 }],
   },
 
@@ -1781,5 +1364,39 @@ const styles = StyleSheet.create({
   animalAvatarNameActive: {
     color: "#0F9D92",
     fontWeight: "800",
+  },
+
+  calendarShortcutCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#0F9D92",
+    padding: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
+
+  calendarShortcutIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    backgroundColor: "#E8FFF7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+
+  calendarShortcutTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+
+  calendarShortcutText: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 19,
   },
 });

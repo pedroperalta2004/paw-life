@@ -9,7 +9,6 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -153,162 +152,158 @@ export default function LoginScreen() {
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : -250}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.container}>
-            <View style={styles.topSection}>
-              <View style={styles.logoBox}>
-                <Image
-                  source={require("../assets/images/pawlife_logo.png")}
-                  style={styles.logoImage}
-                  resizeMode="contain"
+        <View style={styles.container}>
+          <View style={styles.topSection}>
+            <View style={styles.logoBox}>
+              <Image
+                source={require("../assets/images/pawlife_logo.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+            </View>
+
+            <Text style={styles.appName}>PawLife</Text>
+            <Text style={styles.subtitle}>
+              A plataforma completa para o bem-estar do seu melhor amigo.
+            </Text>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Aceda à sua conta</Text>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Email</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="mail-outline"
+                  size={18}
+                  color="#94A3B8"
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="user@exemplo.com"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!loading}
                 />
               </View>
-
-              <Text style={styles.appName}>PawLife</Text>
-              <Text style={styles.subtitle}>
-                A plataforma completa para o bem-estar do seu melhor amigo.
-              </Text>
             </View>
 
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Aceda à sua conta</Text>
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Palavra-passe</Text>
 
-              <View style={styles.fieldBlock}>
-                <Text style={styles.label}>Email</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="mail-outline"
-                    size={18}
-                    color="#94A3B8"
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="user@exemplo.com"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    value={email}
-                    onChangeText={setEmail}
-                    editable={!loading}
-                  />
-                </View>
-              </View>
+              <View style={styles.inputWrapper}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={18}
+                  color="#94A3B8"
+                  style={styles.inputIcon}
+                />
 
-              <View style={styles.fieldBlock}>
-                <View style={styles.passwordHeader}>
-                  <Text style={styles.label}>Palavra-passe</Text>
-                  <Pressable onPress={() => router.push("/esqueceu_password")}>
-                    <Text style={styles.forgotPassword}>
-                      Esqueceu-se da palavra-passe?
-                    </Text>
-                  </Pressable>
-                </View>
+                <TextInput
+                  style={styles.input}
+                  placeholder="••••••••••••"
+                  placeholderTextColor="#b5beca"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!loading}
+                />
 
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={18}
-                    color="#94A3B8"
-                    style={styles.inputIcon}
-                  />
-
-                  <TextInput
-                    style={styles.input}
-                    placeholder="••••••••••••"
-                    placeholderTextColor="#94A3B8"
-                    secureTextEntry={!showPassword}
-                    value={password}
-                    onChangeText={setPassword}
-                    editable={!loading}
-                  />
-
-                  <Pressable
-                    onPress={() => setShowPassword((prev) => !prev)}
-                    hitSlop={10}
-                    disabled={loading}
-                  >
-                    <Ionicons
-                      name={showPassword ? "eye-off-outline" : "eye-outline"}
-                      size={20}
-                      color="#94A3B8"
-                    />
-                  </Pressable>
-                </View>
-              </View>
-
-              <Pressable
-                style={styles.rememberRow}
-                onPress={() => setRememberEmail((prev) => !prev)}
-                disabled={loading}
-              >
-                <View
-                  style={[
-                    styles.checkbox,
-                    rememberEmail && styles.checkboxActive,
-                  ]}
+                <Pressable
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  hitSlop={10}
+                  disabled={loading}
                 >
-                  {rememberEmail && (
-                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-                  )}
-                </View>
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#94A3B8"
+                  />
+                </Pressable>
+              </View>
+            </View>
 
-                <Text style={styles.rememberText}>Lembrar email</Text>
-              </Pressable>
+            <Pressable
+              style={styles.rememberRow}
+              onPress={() => setRememberEmail((prev) => !prev)}
+              disabled={loading}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  rememberEmail && styles.checkboxActive,
+                ]}
+              >
+                {rememberEmail && (
+                  <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                )}
+              </View>
 
+              <Text style={styles.rememberText}>Lembrar email</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.loginButton, loading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={loading || biometricLoading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.loginButtonText}>Entrar</Text>
+              )}
+            </Pressable>
+
+            {biometricAvailable && (
               <Pressable
-                style={[styles.loginButton, loading && styles.buttonDisabled]}
-                onPress={handleLogin}
+                style={[
+                  styles.biometricButton,
+                  biometricLoading && styles.buttonDisabled,
+                ]}
+                onPress={handleBiometricLogin}
                 disabled={loading || biometricLoading}
               >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                {biometricLoading ? (
+                  <ActivityIndicator color="#0F9D92" />
                 ) : (
-                  <Text style={styles.loginButtonText}>Entrar</Text>
+                  <>
+                    <Ionicons
+                      name="finger-print-outline"
+                      size={22}
+                      color="#0F9D92"
+                    />
+                    <Text style={styles.biometricButtonText}>
+                      Entrar com biometria
+                    </Text>
+                  </>
                 )}
               </Pressable>
+            )}
 
-              {biometricAvailable && (
-                <Pressable
-                  style={[
-                    styles.biometricButton,
-                    biometricLoading && styles.buttonDisabled,
-                  ]}
-                  onPress={handleBiometricLogin}
-                  disabled={loading || biometricLoading}
-                >
-                  {biometricLoading ? (
-                    <ActivityIndicator color="#0F9D92" />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name="finger-print-outline"
-                        size={22}
-                        color="#0F9D92"
-                      />
-                      <Text style={styles.biometricButtonText}>
-                        Entrar com biometria
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
-              )}
-            </View>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Ainda não tem conta? </Text>
-              <Pressable onPress={() => router.push("/registar")}>
-                <Text style={styles.footerLink}>Criar agora</Text>
-              </Pressable>
-            </View>
+            <Pressable
+              style={styles.forgotPasswordButton}
+              onPress={() => router.push("/esqueceu_password")}
+            >
+              <Text style={styles.forgotPassword}>
+                Esqueceu-se da palavra-passe?
+              </Text>
+            </Pressable>
           </View>
-        </ScrollView>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Ainda não tem conta? </Text>
+            <Pressable onPress={() => router.push("/registar")}>
+              <Text style={styles.footerLink}>Criar agora</Text>
+            </Pressable>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -324,15 +319,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  scrollContainer: {
-    flexGrow: 1,
-  },
-
   container: {
-    flexGrow: 1,
+    flex: 1,
     justifyContent: "center",
     paddingHorizontal: 24,
-    paddingVertical: 28,
+    paddingTop: 90,
+    paddingBottom: 24,
   },
 
   topSection: {
@@ -404,18 +396,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  passwordHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
+  forgotPasswordButton: {
+    alignSelf: "center",
+    marginTop: 14,
+    paddingVertical: 4,
   },
 
   forgotPassword: {
-    fontSize: 11,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
     color: "#10B3A3",
-    marginBottom: 6,
+    textAlign: "center",
   },
 
   inputWrapper: {
